@@ -1020,6 +1020,190 @@
         padding-left: 14px;
       }
     }
+
+    /* Mode Massal - disembunyikan dari pemakaian sehari-hari, lihat footer */
+    .bulk-gate-trigger {
+      display: inline-block;
+      margin-left: 8px;
+      color: var(--uinsa-wash);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .bulk-gate {
+      max-width: 360px;
+      margin: 0 auto 24px;
+      padding: 16px;
+      border: 1px solid var(--uinsa-border);
+      border-radius: 10px;
+      background: var(--uinsa-surface);
+    }
+
+    .bulk-gate label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+      font-size: 13px;
+      color: var(--uinsa-ink);
+    }
+
+    .bulk-gate-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .bulk-gate-row input {
+      flex: 1;
+      min-width: 0;
+      padding: 9px 10px;
+      border: 1px solid var(--uinsa-border);
+      border-radius: 6px;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+    }
+
+    .bulk-gate-row button {
+      padding: 9px 14px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--uinsa-green);
+      color: #ffffff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .bulk-gate-error {
+      display: none;
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--uinsa-danger);
+    }
+
+    .bulk-panel {
+      margin-top: 20px;
+      padding: 20px;
+      border: 1px solid var(--uinsa-border);
+      border-radius: 10px;
+      background: var(--uinsa-surface);
+    }
+
+    .bulk-panel h2 {
+      margin: 0 0 4px;
+      color: var(--uinsa-green);
+      font-size: 19px;
+    }
+
+    .bulk-panel .subtitle {
+      margin: 0 0 16px;
+      color: var(--uinsa-muted);
+      font-size: 13px;
+    }
+
+    .bulk-panel .field {
+      margin-bottom: 14px;
+    }
+
+    .bulk-panel label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .bulk-panel input,
+    .bulk-panel select,
+    .bulk-panel textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--uinsa-border);
+      border-radius: 6px;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+    }
+
+    .bulk-panel textarea#bulkSubjects {
+      min-height: 140px;
+      resize: vertical;
+    }
+
+    .bulk-generate-button {
+      width: 100%;
+      padding: 13px 18px;
+      border: 0;
+      border-radius: 7px;
+      background: var(--uinsa-green);
+      color: #ffffff;
+      font-weight: bold;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .bulk-generate-button[disabled] {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .bulk-results {
+      margin-top: 18px;
+    }
+
+    .bulk-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-top: 1px solid var(--uinsa-border);
+      flex-wrap: wrap;
+    }
+
+    .bulk-item-number {
+      font-weight: bold;
+      color: var(--uinsa-green);
+      min-width: 56px;
+    }
+
+    .bulk-item-subject {
+      flex: 1 1 220px;
+      font-size: 13px;
+      color: var(--uinsa-ink);
+    }
+
+    .bulk-item-file {
+      font-size: 12px;
+      max-width: 180px;
+    }
+
+    .bulk-item-status {
+      font-size: 12px;
+      min-width: 90px;
+    }
+
+    .bulk-item-status.pending {
+      color: var(--uinsa-muted);
+    }
+
+    .bulk-item-status.uploading {
+      color: #8a6d1c;
+    }
+
+    .bulk-item-status.done {
+      color: var(--uinsa-green);
+    }
+
+    .bulk-item-status.failed {
+      color: var(--uinsa-danger);
+    }
+
+    .bulk-item-retry {
+      display: none;
+      padding: 6px 10px;
+      border: 1px solid var(--uinsa-danger);
+      border-radius: 6px;
+      background: #ffffff;
+      color: var(--uinsa-danger);
+      font-size: 12px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -1201,7 +1385,90 @@
 
     <footer class="footer">
       SIDDIQ — Sistem Penomoran Surat Otomatis — Bagian Umum UIN Sunan Ampel Surabaya
+      <span id="bulkGateTrigger" class="bulk-gate-trigger" onclick="toggleBulkGate();">&middot;</span>
     </footer>
+
+    <div id="bulkGate" class="bulk-gate" style="display:none;">
+      <label for="bulkAccessCode">Kode Akses</label>
+      <div class="bulk-gate-row">
+        <input id="bulkAccessCode" type="password" autocomplete="off" onkeydown="if(event.key==='Enter'){submitBulkAccessCode();}">
+        <button type="button" onclick="submitBulkAccessCode();">Buka</button>
+      </div>
+      <div id="bulkGateError" class="bulk-gate-error"></div>
+    </div>
+
+    <section id="bulkPanel" class="bulk-panel" style="display:none;">
+      <h2>Mode Massal</h2>
+      <p class="subtitle">Untuk permintaan banyak nomor sekaligus dengan Jenis Surat, Dari/Kepada, Nama Pemohon, dan Unit Kerja yang sama. Semua nomor dibuat sekaligus; unggah draft tetap satu per satu di bawah.</p>
+
+      <div id="bulkError" class="message error"></div>
+
+      <form id="bulkCommonForm" onsubmit="generateBulkNumbers(); return false;">
+        <div class="field">
+          <label for="bulkDocumentType">Jenis Surat <span class="required">*</span></label>
+          <select id="bulkDocumentType" required onchange="toggleBulkRoutingFields();">
+            <option value="">-- Pilih jenis surat --</option>
+            <option value="Surat Dinas">Surat Dinas</option>
+            <option value="Nota Dinas">Nota Dinas</option>
+            <option value="SK/SE">SK/SE</option>
+          </select>
+        </div>
+
+        <div id="bulkRoutingFields" class="routing-fields">
+          <div class="field">
+            <label for="bulkFrom">Dari <span class="required">*</span></label>
+            <textarea id="bulkFrom" maxlength="300" placeholder="Pejabat Penandatangan."></textarea>
+          </div>
+
+          <div class="field">
+            <label for="bulkTo">Kepada <span class="required">*</span></label>
+            <textarea id="bulkTo" maxlength="300" placeholder="Tujuan Surat."></textarea>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="bulkApplicantName">Nama Pemohon <span class="required">*</span></label>
+          <input id="bulkApplicantName" type="text" maxlength="150" placeholder="Tuliskan nama lengkap.">
+        </div>
+
+        <div class="field">
+          <label for="bulkUnit">Unit Kerja <span class="required">*</span></label>
+          <select id="bulkUnit" required>
+            <option value="">-- Pilih unit kerja --</option>
+            <option>Bagian Umum</option>
+            <option>Bagian Perencanaan</option>
+            <option>Bagian Organisasi dan Kepegawaian</option>
+            <option>Bagian Keuangan dan Akuntansi</option>
+            <option>Bagian Akademik</option>
+            <option>Bagian Kerjasama, Kelembagaan dan Humas</option>
+            <option>Bagian Kemahasiswaan dan Alumni</option>
+            <option>Klinik</option>
+            <option>LP2M</option>
+            <option>LPM</option>
+            <option>Pusat Percetakan</option>
+            <option>Perpustakaan</option>
+            <option>Pusat Layanan Internasional</option>
+            <option>Pusat Mahad Al-Jamiah</option>
+            <option>Pusat Pengembangan Bahasa</option>
+            <option>Pusat Pengembangan Bisnis</option>
+            <option>PUSTIPD</option>
+            <option>SPI</option>
+            <option>Badan Pengelolaan Penerimaan Mahasiswa Baru</option>
+            <option>Senat Universitas</option>
+            <option>Pusat Studi Pengukuran dan Pengujian Pendidikan</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="bulkSubjects">Daftar Perihal <span class="required">*</span></label>
+          <textarea id="bulkSubjects" placeholder="1 baris = 1 surat. Bisa tempel langsung dari kolom Excel/Word."></textarea>
+        </div>
+
+        <button id="bulkGenerateButton" class="bulk-generate-button" type="submit">Buatkan Semua Nomor</button>
+      </form>
+
+      <div id="bulkResults" class="bulk-results"></div>
+    </section>
   </div>
 
   <script>
@@ -1562,6 +1829,210 @@
         event.returnValue = message;
       }
       return message;
+    }
+
+    // ---- Mode Massal ----
+    var BULK_ACCESS_TOKEN = null;
+    var bulkItemsState = [];
+
+    function toggleBulkGate() {
+      var gate = document.getElementById('bulkGate');
+      var isHidden = gate.style.display === 'none' || !gate.style.display;
+      gate.style.display = isHidden ? 'block' : 'none';
+      if (isHidden) {
+        document.getElementById('bulkAccessCode').focus();
+      }
+    }
+
+    function submitBulkAccessCode() {
+      var code = document.getElementById('bulkAccessCode').value;
+      var errorBox = document.getElementById('bulkGateError');
+      errorBox.style.display = 'none';
+
+      if (!trim(code)) {
+        errorBox.innerHTML = 'Kode akses wajib diisi.';
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          BULK_ACCESS_TOKEN = result.accessToken;
+          document.getElementById('bulkGate').style.display = 'none';
+          document.getElementById('bulkAccessCode').value = '';
+          document.getElementById('bulkPanel').style.display = 'block';
+          try {
+            document.getElementById('bulkPanel').scrollIntoView({behavior: 'smooth', block: 'start'});
+          } catch (ignore) {
+            window.scrollTo(0, document.body.scrollHeight);
+          }
+        })
+        .withFailureHandler(function(error) {
+          errorBox.innerHTML = escapeHtml(error && error.message ? error.message : 'Kode akses salah.');
+          errorBox.style.display = 'block';
+        })
+        .verifyBulkAccessCode({ code: code });
+    }
+
+    function toggleBulkRoutingFields() {
+      var type = document.getElementById('bulkDocumentType').value;
+      var fields = document.getElementById('bulkRoutingFields');
+      var requiresRouting = type === 'Surat Dinas' || type === 'Nota Dinas';
+      fields.style.display = requiresRouting ? 'grid' : 'none';
+    }
+
+    function generateBulkNumbers() {
+      var errorBox = document.getElementById('bulkError');
+      errorBox.style.display = 'none';
+
+      var documentType = document.getElementById('bulkDocumentType').value;
+      var from = document.getElementById('bulkFrom').value;
+      var to = document.getElementById('bulkTo').value;
+      var applicantName = document.getElementById('bulkApplicantName').value;
+      var unit = document.getElementById('bulkUnit').value;
+      var subjectsRaw = document.getElementById('bulkSubjects').value;
+
+      var subjects = subjectsRaw.split('\n')
+        .map(function(line) { return trim(line); })
+        .filter(function(line) { return line.length > 0; });
+
+      if (!documentType) {
+        showBulkError('Silakan pilih jenis surat.');
+        return;
+      }
+      if (!trim(applicantName)) {
+        showBulkError('Nama pemohon wajib diisi.');
+        return;
+      }
+      if (!unit) {
+        showBulkError('Silakan pilih unit kerja.');
+        return;
+      }
+      if ((documentType === 'Surat Dinas' || documentType === 'Nota Dinas') &&
+          (!trim(from) || !trim(to))) {
+        showBulkError('Kolom Dari dan Kepada wajib diisi untuk jenis surat ini.');
+        return;
+      }
+      if (!subjects.length) {
+        showBulkError('Isi minimal 1 baris Perihal.');
+        return;
+      }
+
+      var button = document.getElementById('bulkGenerateButton');
+      button.disabled = true;
+      button.innerHTML = 'Memproses...';
+
+      var items = subjects.map(function(subject) {
+        return { subject: subject };
+      });
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          button.disabled = false;
+          button.innerHTML = 'Buatkan Semua Nomor';
+          renderBulkResults(result.items);
+        })
+        .withFailureHandler(function(error) {
+          button.disabled = false;
+          button.innerHTML = 'Buatkan Semua Nomor';
+          showBulkError(error && error.message ? error.message : 'Terjadi kesalahan saat membuat nomor.');
+        })
+        .reserveBulkRequests({
+          accessToken: BULK_ACCESS_TOKEN,
+          documentType: documentType,
+          from: from,
+          to: to,
+          applicantName: applicantName,
+          unit: unit,
+          items: items
+        });
+    }
+
+    function showBulkError(message) {
+      var errorBox = document.getElementById('bulkError');
+      errorBox.innerHTML = escapeHtml(message);
+      errorBox.style.display = 'block';
+    }
+
+    function renderBulkResults(items) {
+      bulkItemsState = items;
+      var container = document.getElementById('bulkResults');
+      container.innerHTML = '';
+
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var row = document.createElement('form');
+        row.className = 'bulk-item';
+        row.id = 'bulkItem' + i;
+        row.onsubmit = function() { return false; };
+        row.innerHTML =
+          '<input type="hidden" name="reservedRequestId" value="' + escapeHtml(item.requestId) + '">' +
+          '<input type="hidden" name="requestToken" value="' + escapeHtml(item.token) + '">' +
+          '<span class="bulk-item-number">' + escapeHtml(String(item.number)) + '</span>' +
+          '<span class="bulk-item-subject">' + escapeHtml(item.subject) + '</span>' +
+          '<input class="bulk-item-file" type="file" name="draft" id="bulkFile' + i + '" accept=".pdf,.doc,.docx,.xls,.xlsx">' +
+          '<span class="bulk-item-status pending" id="bulkStatus' + i + '">Menunggu file</span>' +
+          '<button class="bulk-item-retry" id="bulkRetry' + i + '" type="button" onclick="uploadBulkItem(' + i + ');">Coba Lagi</button>';
+        container.appendChild(row);
+
+        (function(index) {
+          document.getElementById('bulkFile' + index).addEventListener('change', function() {
+            uploadBulkItem(index);
+          });
+        })(i);
+      }
+    }
+
+    function uploadBulkItem(index) {
+      var formEl = document.getElementById('bulkItem' + index);
+      var fileInput = document.getElementById('bulkFile' + index);
+      var file = fileInput.files && fileInput.files.length ? fileInput.files[0] : null;
+      var statusEl = document.getElementById('bulkStatus' + index);
+      var retryButton = document.getElementById('bulkRetry' + index);
+
+      if (!file) {
+        return;
+      }
+
+      if (file.size > MAX_FILE_BYTES) {
+        statusEl.className = 'bulk-item-status failed';
+        statusEl.innerHTML = 'Ukuran file melebihi 10 MB.';
+        retryButton.style.display = 'inline-block';
+        return;
+      }
+
+      var extension = getExtension(file.name);
+      if (ALLOWED_EXTENSIONS.indexOf(extension) === -1) {
+        statusEl.className = 'bulk-item-status failed';
+        statusEl.innerHTML = 'Format file tidak didukung.';
+        retryButton.style.display = 'inline-block';
+        return;
+      }
+
+      statusEl.className = 'bulk-item-status uploading';
+      statusEl.innerHTML = 'Mengunggah...';
+      retryButton.style.display = 'none';
+      fileInput.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          fileInput.disabled = false;
+          if (!result || !result.success || !result.uploadComplete) {
+            statusEl.className = 'bulk-item-status failed';
+            statusEl.innerHTML = 'Gagal, coba lagi.';
+            retryButton.style.display = 'inline-block';
+            return;
+          }
+          statusEl.className = 'bulk-item-status done';
+          statusEl.innerHTML = 'Selesai';
+        })
+        .withFailureHandler(function(error) {
+          fileInput.disabled = false;
+          statusEl.className = 'bulk-item-status failed';
+          statusEl.innerHTML = escapeHtml(error && error.message ? error.message : 'Gagal, coba lagi.');
+          retryButton.style.display = 'inline-block';
+        })
+        .uploadDraft(formEl);
     }
 
     if (window.addEventListener) {

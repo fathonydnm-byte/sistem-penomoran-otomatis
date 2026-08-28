@@ -954,7 +954,9 @@ function ensureDefaultSettings_(spreadsheet) {
     ['MAX_FILE_SIZE_MB', APP.MAX_FILE_SIZE_MB, 'Ukuran maksimum satu file'],
     ['ALLOWED_EXTENSIONS', APP.ALLOWED_EXTENSIONS.join(','), 'Ekstensi yang diperbolehkan'],
     ['ADMIN_EMAIL', APP.ADMIN_EMAIL, 'Akun admin utama'],
-    ['SCHEMA_VERSION', '2.1.1', 'Versi struktur sistem']
+    ['BULK_ACCESS_CODE', 'GANTI-KODE-INI', 'Kode akses Mode Massal (ganti sendiri kapan saja lewat sel ini)'],
+    ['BULK_MAX_ITEMS', 100, 'Batas maksimal jumlah nomor per generate Mode Massal'],
+    ['SCHEMA_VERSION', '2.2.0', 'Versi struktur sistem']
   ];
 
   if (sheet.getLastRow() === 0) {
