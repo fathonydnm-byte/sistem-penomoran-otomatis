@@ -1231,6 +1231,32 @@
       padding: 6px 8px;
     }
 
+    .bulk-row.is-uploading {
+      background: rgba(194, 160, 104, 0.14);
+      border-radius: 8px;
+      padding-left: 8px;
+      padding-right: 8px;
+      margin-left: -8px;
+      margin-right: -8px;
+    }
+
+    .bulk-row-spinner {
+      display: none;
+      flex: 0 0 auto;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--uinsa-border);
+      border-top-color: #8a6d1c;
+      border-radius: 50%;
+      animation: bulk-spin 0.8s linear infinite;
+    }
+
+    @keyframes bulk-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     .bulk-row-status {
       font-size: 12px;
       min-width: 80px;
@@ -1238,6 +1264,7 @@
 
     .bulk-row-status.uploading {
       color: #8a6d1c;
+      font-weight: bold;
     }
 
     .bulk-row-status.done {
@@ -1456,6 +1483,7 @@
       <p class="subtitle">Untuk permintaan banyak nomor sekaligus dengan Jenis Surat, Dari/Kepada, Nama Pemohon, dan Unit Kerja yang sama. Isi sekali di atas, lalu tambahkan Perihal beserta draft-nya satu per satu di bawah.</p>
 
       <div id="bulkError" class="message error"></div>
+      <div id="bulkUploadWarning" class="message info">Draft sedang diunggah satu per satu. Mohon jangan menutup atau memuat ulang halaman ini sampai semua baris berstatus "Selesai".</div>
 
       <div class="field">
         <label for="bulkDocumentType">Jenis Surat <span class="required">*</span></label>
@@ -1873,7 +1901,7 @@
     }
 
     function warnIfUploading(event) {
-      if (!uploadInProgress) {
+      if (!uploadInProgress && !bulkUploadInProgress) {
         return;
       }
 
@@ -1888,6 +1916,7 @@
     // ---- Mode Massal ----
     var BULK_ACCESS_TOKEN = null;
     var bulkRowCounter = 0;
+    var bulkUploadInProgress = false;
 
     function toggleBulkGate() {
       var gate = document.getElementById('bulkGate');
@@ -1938,6 +1967,8 @@
 
     function resetBulkForm() {
       document.getElementById('bulkError').style.display = 'none';
+      document.getElementById('bulkUploadWarning').style.display = 'none';
+      bulkUploadInProgress = false;
 
       document.getElementById('bulkDocumentType').value = '';
       document.getElementById('bulkDocumentType').disabled = false;
@@ -1980,6 +2011,7 @@
         '</div>' +
         '<div class="bulk-row-bottom">' +
           '<input class="bulk-row-file" type="file" name="draft" id="bulkFile' + index + '" accept=".pdf,.doc,.docx,.xls,.xlsx">' +
+          '<span class="bulk-row-spinner" id="bulkSpinner' + index + '"></span>' +
           '<span class="bulk-row-status" id="bulkRowStatus' + index + '"></span>' +
           '<button class="bulk-row-retry" id="bulkRetry' + index + '" type="button" onclick="retryBulkRow(' + index + ');">Coba Lagi</button>' +
         '</div>' +
@@ -2120,11 +2152,15 @@
         uploadQueue.push(rowIndex);
       }
 
+      bulkUploadInProgress = true;
+      document.getElementById('bulkUploadWarning').style.display = 'block';
       processBulkUploadQueue(uploadQueue, 0);
     }
 
     function processBulkUploadQueue(queue, position) {
       if (position >= queue.length) {
+        bulkUploadInProgress = false;
+        document.getElementById('bulkUploadWarning').style.display = 'none';
         return;
       }
       uploadBulkRow(queue[position], function() {
@@ -2135,15 +2171,20 @@
     function uploadBulkRow(rowIndex, onDone) {
       var formEl = document.getElementById('bulkRow' + rowIndex);
       var statusEl = document.getElementById('bulkRowStatus' + rowIndex);
+      var spinnerEl = document.getElementById('bulkSpinner' + rowIndex);
       var retryButton = document.getElementById('bulkRetry' + rowIndex);
       var fileInput = document.getElementById('bulkFile' + rowIndex);
 
+      formEl.className = 'bulk-row is-uploading';
       statusEl.className = 'bulk-row-status uploading';
-      statusEl.innerHTML = 'Mengunggah...';
+      statusEl.innerHTML = 'Sedang mengunggah draft ini, mohon tunggu...';
+      spinnerEl.style.display = 'inline-block';
       retryButton.style.display = 'none';
 
       google.script.run
         .withSuccessHandler(function(result) {
+          formEl.className = 'bulk-row';
+          spinnerEl.style.display = 'none';
           if (!result || !result.success || !result.uploadComplete) {
             statusEl.className = 'bulk-row-status failed';
             statusEl.innerHTML = 'Gagal.';
@@ -2158,6 +2199,8 @@
           }
         })
         .withFailureHandler(function(error) {
+          formEl.className = 'bulk-row';
+          spinnerEl.style.display = 'none';
           statusEl.className = 'bulk-row-status failed';
           statusEl.innerHTML = escapeHtml(error && error.message ? error.message : 'Gagal.');
           retryButton.style.display = 'inline-block';
