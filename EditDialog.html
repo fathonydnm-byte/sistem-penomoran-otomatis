@@ -1,0 +1,300 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 18px;
+      color: #24342b;
+      background: #f5f8f6;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+    }
+
+    .card {
+      padding: 18px;
+      border: 1px solid #d8e2dc;
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .notice,
+    .error,
+    .success {
+      margin-bottom: 14px;
+      padding: 10px 12px;
+      border-radius: 6px;
+    }
+
+    .notice {
+      color: #5d4b1c;
+      border: 1px solid #ead69c;
+      background: #fff9e8;
+    }
+
+    .error {
+      display: none;
+      color: #8b1f1f;
+      border: 1px solid #edb7b7;
+      background: #fff0f0;
+    }
+
+    .success {
+      display: none;
+      color: #17643b;
+      border: 1px solid #b9dfc7;
+      background: #effaf3;
+    }
+
+    .field {
+      margin-bottom: 13px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid #bcc8c0;
+      border-radius: 5px;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+    }
+
+    textarea {
+      min-height: 68px;
+      resize: vertical;
+    }
+
+    .actions {
+      margin-top: 18px;
+      text-align: right;
+    }
+
+    button {
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .primary {
+      color: #ffffff;
+      background: #006b3d;
+    }
+
+    .secondary {
+      margin-right: 8px;
+      color: #35463c;
+      border: 1px solid #b9c6be;
+      background: #ffffff;
+    }
+
+    button[disabled] {
+      cursor: wait;
+      opacity: 0.65;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="notice">
+      Semua perubahan akan dicatat di tab <strong>LOG_PERUBAHAN</strong>.
+      Nomor baru akan diperiksa agar tidak duplikat.
+    </div>
+
+    <div id="error" class="error"></div>
+    <div id="success" class="success"></div>
+
+    <form
+      id="editForm"
+      method="post"
+      target="_self"
+      onsubmit="return prepareDirectSave(this);"
+    >
+      <input name="action" type="hidden" value="adminEdit">
+      <input id="rowNumber" name="rowNumber" type="hidden" value="<?= rowNumber ?>">
+      <input id="requestId" name="requestId" type="hidden">
+      <input id="editToken" name="editToken" type="hidden">
+
+      <div class="field">
+        <label for="timestamp">Tanggal dan Waktu Permintaan</label>
+        <input id="timestamp" name="timestamp" type="text" required placeholder="YYYY-MM-DD HH:mm:ss">
+      </div>
+
+      <div class="field">
+        <label for="number">Nomor Surat</label>
+        <input id="number" name="number" type="number" min="1" step="1" required>
+      </div>
+
+      <div class="field">
+        <label for="documentType">Jenis Surat</label>
+        <select id="documentType" name="documentType" required>
+          <option value="Surat Dinas">Surat Dinas</option>
+          <option value="Nota Dinas">Nota Dinas</option>
+          <option value="SK/SE">SK/SE</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="subject">Perihal</label>
+        <textarea id="subject" name="subject" maxlength="500" required></textarea>
+      </div>
+
+      <div class="field">
+        <label for="from">Dari</label>
+        <textarea id="from" name="from" maxlength="300"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="to">Kepada</label>
+        <textarea id="to" name="to" maxlength="300"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="applicantName">Nama Pemohon</label>
+        <input id="applicantName" name="applicantName" type="text" maxlength="150" required>
+      </div>
+
+      <div class="field">
+        <label for="unit">Unit Kerja</label>
+        <select id="unit" name="unit" required>
+          <option>Bagian Umum</option>
+          <option>Bagian Perencanaan</option>
+          <option>Bagian Organisasi dan Kepegawaian</option>
+          <option>Bagian Keuangan dan Akuntansi</option>
+          <option>Bagian Akademik</option>
+          <option>Bagian Kerjasama, Kelembagaan dan Humas</option>
+          <option>Bagian Kemahasiswaan dan Alumni</option>
+          <option>Klinik</option>
+          <option>LP2M</option>
+          <option>LPM</option>
+          <option>Pusat Percetakan</option>
+          <option>Perpustakaan</option>
+          <option>Pusat Layanan Internasional</option>
+          <option>Pusat Mahad Al-Jamiah</option>
+          <option>Pusat Pengembangan Bahasa</option>
+          <option>Pusat Pengembangan Bisnis</option>
+          <option>PUSTIPD</option>
+          <option>SPI</option>
+          <option>Badan Pengelolaan Penerimaan Mahasiswa Baru</option>
+          <option>Senat Universitas</option>
+          <option>Pusat Studi Pengukuran dan Pengujian Pendidikan</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="email">Email Terdeteksi</label>
+        <input id="email" name="email" type="text" maxlength="254">
+      </div>
+
+      <div class="field">
+        <label for="fileUrl">Link Alih Media</label>
+        <input id="fileUrl" name="fileUrl" type="text" maxlength="500">
+      </div>
+
+      <div class="field">
+        <label for="reason">Alasan Koreksi</label>
+        <textarea id="reason" name="reason" maxlength="500" required placeholder="Contoh: melengkapi nama pemohon dan memperjelas perihal."></textarea>
+      </div>
+
+      <div class="actions">
+        <button class="secondary" type="button" onclick="google.script.host.close();">Batal</button>
+        <button id="saveButton" class="primary" type="submit">Simpan Perubahan</button>
+      </div>
+    </form>
+
+  </div>
+
+  <script>
+    var ROW_NUMBER = <?= rowNumber ?>;
+    var INITIAL_DATA = <?!= initialDataJson ?>;
+    var ADMIN_EDIT_URL = <?!= adminEditUrlJson ?>;
+
+    function loadData() {
+      document.getElementById('editForm').action = ADMIN_EDIT_URL;
+      populateForm(INITIAL_DATA);
+    }
+
+    function populateForm(data) {
+      setBusy(false);
+      document.getElementById('editToken').value = data.editToken || '';
+      document.getElementById('requestId').value = data.requestId || '';
+      document.getElementById('timestamp').value = data.timestamp || '';
+      document.getElementById('number').value = data.number || '';
+      document.getElementById('documentType').value = data.documentType || 'Surat Dinas';
+      document.getElementById('subject').value = data.subject || '';
+      document.getElementById('from').value = data.from || '';
+      document.getElementById('to').value = data.to || '';
+      document.getElementById('applicantName').value = data.applicantName || '';
+      document.getElementById('unit').value = data.unit || 'Bagian Umum';
+      document.getElementById('email').value = data.email || '';
+      document.getElementById('fileUrl').value = data.fileUrl || '';
+    }
+
+    function prepareDirectSave(form) {
+      hideMessages();
+
+      if (!ADMIN_EDIT_URL) {
+        showFailure({
+          message: 'URL penyimpanan belum tersedia. Hubungi administrator.'
+        });
+        return false;
+      }
+
+      form.action = ADMIN_EDIT_URL;
+      setBusy(true);
+      return true;
+    }
+
+    function showFailure(error) {
+      setBusy(false);
+      var element = document.getElementById('error');
+      var message =
+        error && error.message ? error.message : 'Terjadi kesalahan.';
+      element.innerHTML = escapeHtml(message);
+      element.style.display = 'block';
+    }
+
+    function setBusy(active) {
+      var button = document.getElementById('saveButton');
+      button.disabled = active;
+      button.innerHTML = active ? 'Memproses...' : 'Simpan Perubahan';
+    }
+
+    function hideMessages() {
+      document.getElementById('error').style.display = 'none';
+      document.getElementById('success').style.display = 'none';
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    if (window.addEventListener) {
+      window.addEventListener('load', loadData, false);
+    } else {
+      window.onload = loadData;
+    }
+  </script>
+</body>
+</html>
