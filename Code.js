@@ -114,6 +114,8 @@ function onOpen() {
     .addItem('Edit Permintaan Terpilih', 'showEditDialog')
     .addItem('Batalkan Permintaan Terpilih', 'cancelSelectedRequest')
     .addSeparator()
+    .addItem('Arsipkan Data Tahun Lalu', 'archiveOldYearsManual')
+    .addSeparator()
     .addItem('Buka Pengaturan Counter', 'openSettingsSheet')
     .addItem('Instal / Perbaiki Sistem', 'initializeApplication')
     .addToUi();
@@ -134,10 +136,12 @@ function initializeApplication() {
   ensureStatusValidation_(spreadsheet);
   ensureDefaultSettings_(spreadsheet);
   ensureYearFolders_();
+  ensureArchiveTrigger_();
 
   SpreadsheetApp.getUi().alert(
     'Sistem siap digunakan.\n\n' +
-    'Spreadsheet, pengaturan counter, log perubahan, dan folder tahun berjalan telah diverifikasi.'
+    'Spreadsheet, pengaturan counter, log perubahan, folder tahun berjalan, ' +
+    'dan trigger arsip tahunan telah diverifikasi.'
   );
 }
 
