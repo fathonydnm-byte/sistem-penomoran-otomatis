@@ -1188,6 +1188,16 @@
       gap: 10px;
     }
 
+    .bulk-row-index {
+      flex: 0 0 auto;
+      min-width: 22px;
+      padding-top: 11px;
+      color: var(--uinsa-muted);
+      font-size: 13px;
+      font-weight: bold;
+      text-align: right;
+    }
+
     .bulk-row-subject {
       flex: 1;
       min-width: 0;
@@ -1964,6 +1974,7 @@
       row.onsubmit = function() { return false; };
       row.innerHTML =
         '<div class="bulk-row-top">' +
+          '<span class="bulk-row-index">' + (index + 1) + '</span>' +
           '<textarea class="bulk-row-subject" id="bulkSubject' + index + '" placeholder="Tuliskan perihal" oninput="handleBulkSubjectInput(' + index + ');"></textarea>' +
           '<span class="bulk-row-number" id="bulkNumber' + index + '"></span>' +
         '</div>' +
@@ -2101,7 +2112,10 @@
         document.getElementById('bulkReqId' + rowIndex).value = result.requestId;
         document.getElementById('bulkToken' + rowIndex).value = result.token;
         document.getElementById('bulkSubject' + rowIndex).disabled = true;
-        document.getElementById('bulkFile' + rowIndex).disabled = true;
+        // Kolom file SENGAJA belum dinonaktifkan di sini -- input yang
+        // disabled tidak ikut terkirim ke server, sehingga uploadDraft
+        // akan menerima "tidak ada file" walau pengguna sudah memilihnya.
+        // Dinonaktifkan nanti di uploadBulkRow, hanya setelah upload sukses.
 
         uploadQueue.push(rowIndex);
       }
@@ -2122,6 +2136,7 @@
       var formEl = document.getElementById('bulkRow' + rowIndex);
       var statusEl = document.getElementById('bulkRowStatus' + rowIndex);
       var retryButton = document.getElementById('bulkRetry' + rowIndex);
+      var fileInput = document.getElementById('bulkFile' + rowIndex);
 
       statusEl.className = 'bulk-row-status uploading';
       statusEl.innerHTML = 'Mengunggah...';
@@ -2136,6 +2151,7 @@
           } else {
             statusEl.className = 'bulk-row-status done';
             statusEl.innerHTML = 'Selesai';
+            fileInput.disabled = true;
           }
           if (onDone) {
             onDone();
