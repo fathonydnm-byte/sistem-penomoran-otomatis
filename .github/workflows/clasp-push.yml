@@ -1,0 +1,35 @@
+name: Push kode ke Apps Script
+
+# Otomatis mengirim (clasp push) kode terbaru dari branch ini ke editor
+# Apps Script setiap ada perubahan masuk. Ini HANYA menyalin kode ke editor
+# Apps Script (setara "Save"/clasp push manual) -- TIDAK membuat perubahan
+# langsung live ke pengguna. Membuat deployment versi baru ("Deploy" di
+# Apps Script) tetap dilakukan manual oleh admin sebagai pengecekan akhir
+# sebelum perubahan live ke seluruh pegawai.
+on:
+  push:
+    branches:
+      - claude/audit-surat-dinas-system-p9saof
+
+jobs:
+  clasp-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout kode
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clasp
+        run: npm install -g @google/clasp
+
+      - name: Pulihkan kredensial clasp
+        run: echo "$CLASP_CREDENTIALS" > "$HOME/.clasprc.json"
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+
+      - name: Push ke Apps Script
+        run: clasp push --force
