@@ -79,34 +79,89 @@ function saveAdminEdit(payload) {
     throw new Error('Baris data tidak valid.');
   }
 
+  var sheet = getRequiredSheet_(APP.DATA_SHEET);
+  if (rowNumber > sheet.getLastRow()) {
+    throw new Error('Baris data tidak ditemukan.');
+  }
+
+  var oldValues = sheet.getRange(rowNumber, 1, 1, REQUEST_HEADERS.length)
+    .getValues()[0];
+  var currentRequestId = String(oldValues[11] || '');
+  if (!currentRequestId || currentRequestId !== String(payload.requestId || '')) {
+    throw new Error(
+      'Data telah berubah sejak dialog dibuka. Tutup dialog lalu pilih ulang barisnya.'
+    );
+  }
+
+  var edited = normalizeAdminPayload_(payload);
+  validateAdminPayload_(edited);
+
+  var editedYear = Number(
+    Utilities.formatDate(edited.timestamp, APP.TIMEZONE, 'yyyy')
+  );
+  var numberingChanged =
+    Number(oldValues[1]) !== Number(edited.number) ||
+    String(oldValues[2] || '') !== edited.documentType ||
+    Number(oldValues[12]) !== editedYear;
+
+  // Pengecekan nomor ganda (dan validasi lain di atas) sengaja dilakukan
+  // SEBELUM kunci diambil. Tab PERMINTAAN bisa berisi ribuan baris riwayat,
+  // dan permintaan nomor surat publik lain akan tertahan selama kunci ini
+  // dipegang -- jadi pekerjaan berat tidak boleh dilakukan sambil memegangnya.
+  // Diulang singkat di dalam lock sebelum penulisan untuk menutup celah race.
+  if (numberingChanged) {
+    assertUniqueNumber_(
+      sheet,
+      edited.number,
+      edited.documentType,
+      editedYear,
+      rowNumber
+    );
+  }
+
+  var newValues = oldValues.slice();
+  newValues[0] = edited.timestamp;
+  newValues[1] = edited.number;
+  newValues[2] = edited.documentType;
+  newValues[3] = edited.subject;
+  newValues[4] = edited.from;
+  newValues[5] = edited.to;
+  newValues[6] = edited.applicantName;
+  newValues[7] = edited.unit;
+  newValues[8] = edited.email;
+  newValues[9] = edited.fileUrl;
+  newValues[12] = editedYear;
+  newValues[17] = new Date();
+
+  var logRows = buildEditLogRows_(
+    oldValues,
+    newValues,
+    reason,
+    adminEmail
+  );
+
+  // Kunci hanya dipegang untuk verifikasi ulang singkat dan penulisan akhir,
+  // bukan untuk seluruh proses validasi di atas.
   var lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+  try {
+    lock.waitLock(30000);
+  } catch (lockError) {
+    throw new Error(
+      'Sistem sedang memproses permintaan lain. Silakan coba simpan kembali beberapa saat lagi.'
+    );
+  }
 
   try {
-    var sheet = getRequiredSheet_(APP.DATA_SHEET);
-    if (rowNumber > sheet.getLastRow()) {
-      throw new Error('Baris data tidak ditemukan.');
-    }
-
-    var oldValues = sheet.getRange(rowNumber, 1, 1, REQUEST_HEADERS.length)
+    var latestValues = sheet.getRange(rowNumber, 1, 1, REQUEST_HEADERS.length)
       .getValues()[0];
-    var currentRequestId = String(oldValues[11] || '');
-    if (!currentRequestId || currentRequestId !== String(payload.requestId || '')) {
+    if (
+      String(latestValues[11] || '') !== currentRequestId ||
+      formatLogValue_(latestValues[17]) !== formatLogValue_(oldValues[17])
+    ) {
       throw new Error(
-        'Data telah berubah sejak dialog dibuka. Tutup dialog lalu pilih ulang barisnya.'
+        'Data telah berubah sejak validasi terakhir. Tutup dialog lalu pilih ulang barisnya.'
       );
     }
-
-    var edited = normalizeAdminPayload_(payload);
-    validateAdminPayload_(edited);
-
-    var editedYear = Number(
-      Utilities.formatDate(edited.timestamp, APP.TIMEZONE, 'yyyy')
-    );
-    var numberingChanged =
-      Number(oldValues[1]) !== Number(edited.number) ||
-      String(oldValues[2] || '') !== edited.documentType ||
-      Number(oldValues[12]) !== editedYear;
 
     if (numberingChanged) {
       assertUniqueNumber_(
@@ -117,27 +172,6 @@ function saveAdminEdit(payload) {
         rowNumber
       );
     }
-
-    var newValues = oldValues.slice();
-    newValues[0] = edited.timestamp;
-    newValues[1] = edited.number;
-    newValues[2] = edited.documentType;
-    newValues[3] = edited.subject;
-    newValues[4] = edited.from;
-    newValues[5] = edited.to;
-    newValues[6] = edited.applicantName;
-    newValues[7] = edited.unit;
-    newValues[8] = edited.email;
-    newValues[9] = edited.fileUrl;
-    newValues[12] = editedYear;
-    newValues[17] = new Date();
-
-    var logRows = buildEditLogRows_(
-      oldValues,
-      newValues,
-      reason,
-      adminEmail
-    );
 
     sheet.getRange(rowNumber, 1, 1, REQUEST_HEADERS.length)
       .setValues([newValues]);
@@ -542,17 +576,26 @@ function assertUniqueNumber_(sheet, number, documentType, year, excludedRow) {
     return;
   }
 
-  var values = sheet.getRange(2, 1, lastRow - 1, 13).getValues();
-  for (var i = 0; i < values.length; i++) {
-    var rowNumber = i + 2;
+  // Mencari lewat TextFinder hanya pada kolom Nomor Surat, bukan membaca
+  // seluruh baris data ke memori. Hanya baris yang nomornya benar-benar
+  // cocok yang kemudian diperiksa jenis surat dan tahunnya.
+  var numberColumn = sheet.getRange(2, 2, lastRow - 1, 1);
+  var matches = numberColumn.createTextFinder(String(number))
+    .matchEntireCell(true)
+    .useRegularExpression(false)
+    .findAll();
+
+  for (var i = 0; i < matches.length; i++) {
+    var rowNumber = matches[i].getRow();
     if (rowNumber === excludedRow) {
       continue;
     }
-    if (
-      Number(values[i][1]) === Number(number) &&
-      String(values[i][2]) === documentType &&
-      Number(values[i][12]) === Number(year)
-    ) {
+
+    var rowMeta = sheet.getRange(rowNumber, 3, 1, 11).getValues()[0];
+    var rowDocumentType = String(rowMeta[0] || '');
+    var rowYear = Number(rowMeta[10]);
+
+    if (rowDocumentType === documentType && rowYear === year) {
       throw new Error(
         'Nomor ' + number + ' untuk ' + documentType +
         ' pada tahun ' + year + ' sudah digunakan di baris ' + rowNumber + '.'
