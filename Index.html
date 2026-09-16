@@ -826,6 +826,84 @@
       background: #fff1f1;
     }
 
+    .upload-progress {
+      display: none;
+      margin: 16px auto 0;
+      padding: 16px;
+      border: 1px solid #d8c27b;
+      border-radius: 10px;
+      background: #fffbed;
+      color: #57450f;
+      text-align: left;
+    }
+
+    .upload-progress-head {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .upload-spinner {
+      flex: 0 0 auto;
+      width: 24px;
+      height: 24px;
+      border: 3px solid rgba(104, 82, 15, 0.20);
+      border-top-color: #8a6a34;
+      border-radius: 50%;
+      animation: single-upload-spin 0.8s linear infinite;
+    }
+
+    .upload-progress-title {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .upload-progress-detail {
+      margin: 3px 0 0;
+      color: #76601f;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .upload-progress-track {
+      position: relative;
+      height: 7px;
+      margin-top: 14px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(138, 106, 52, 0.16);
+    }
+
+    .upload-progress-bar {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -35%;
+      width: 35%;
+      border-radius: inherit;
+      background: #8a6a34;
+      animation: single-upload-progress 1.35s ease-in-out infinite;
+    }
+
+    .upload-progress-meta {
+      display: flex;
+      margin-top: 9px;
+      justify-content: space-between;
+      gap: 12px;
+      color: #76601f;
+      font-size: 11px;
+    }
+
+    @keyframes single-upload-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes single-upload-progress {
+      from { left: -35%; }
+      to { left: 100%; }
+    }
+
     .retry-button {
       min-height: 42px;
       margin-top: 11px;
@@ -1424,6 +1502,22 @@
         <div id="successNumber" class="success-number"></div>
         <button class="secondary-button" type="button" onclick="copyNumber();">Salin Nomor</button>
         <div id="copyFeedback" class="copy-feedback"></div>
+        <div id="uploadProgress" class="upload-progress" role="status" aria-live="polite">
+          <div class="upload-progress-head">
+            <span class="upload-spinner" aria-hidden="true"></span>
+            <div>
+              <p id="uploadProgressTitle" class="upload-progress-title">Menyiapkan upload draft...</p>
+              <p id="uploadProgressDetail" class="upload-progress-detail">Mohon jangan menutup halaman ini.</p>
+            </div>
+          </div>
+          <div class="upload-progress-track" aria-hidden="true">
+            <span class="upload-progress-bar"></span>
+          </div>
+          <div class="upload-progress-meta">
+            <span id="uploadElapsed">Berjalan 0 detik</span>
+            <span id="uploadAttempt">Percobaan 1 dari 3</span>
+          </div>
+        </div>
         <div id="uploadStatus" class="upload-status"></div>
         <button id="retryUploadButton" class="secondary-button retry-button" type="button" onclick="retryUpload();">
           Coba Upload Lagi
@@ -1556,8 +1650,15 @@
   <script>
     var MAX_FILE_BYTES = 10 * 1024 * 1024;
     var ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx'];
+    var SINGLE_UPLOAD_MAX_ATTEMPTS = 3;
+    var SINGLE_UPLOAD_WATCHDOG_MS = 60000;
     var uploadInProgress = false;
     var reservedResult = null;
+    var singleUploadAttempt = 0;
+    var singleUploadCallId = 0;
+    var singleUploadStartedAt = 0;
+    var singleUploadTimerId = null;
+    var singleUploadWatchdogId = null;
 
     function initializePage() {
       createRequestToken();
@@ -1591,6 +1692,7 @@
       hideMessages();
       document.getElementById('successPanel').style.display = 'none';
       setUploadStatus('', '');
+      hideUploadProgress();
       document.getElementById('retryUploadButton').style.display = 'none';
       setRequestAgainVisible(false);
 
@@ -1671,6 +1773,7 @@
       }
 
       reservedResult = result;
+      singleUploadAttempt = 0;
       document.getElementById('reservedRequestId').value = result.requestId;
       document.getElementById('successNumber').innerHTML =
         escapeHtml(String(result.number));
@@ -1682,13 +1785,11 @@
           'Draft surat sudah berhasil tersimpan.',
           'complete'
         );
+        hideUploadProgress();
         setRequestAgainVisible(true);
       } else {
         setRequestAgainVisible(false);
-        setUploadStatus(
-          'Draft sedang diunggah. Mohon jangan menutup halaman.',
-          'pending'
-        );
+        setUploadStatus('', '');
         window.setTimeout(function() {
           startUpload();
         }, 50);
@@ -1715,29 +1816,42 @@
         return;
       }
 
+      singleUploadAttempt += 1;
+      singleUploadCallId += 1;
+      var callId = singleUploadCallId;
       uploadInProgress = true;
       document.getElementById('retryUploadButton').style.display = 'none';
-      setUploadStatus(
-        'Draft sedang diunggah. Mohon jangan menutup halaman.',
-        'pending'
-      );
+      setRequestAgainVisible(false);
+      setUploadStatus('', '');
+      showUploadProgress();
+      startSingleUploadWatchdog(callId);
 
       google.script.run
-        .withSuccessHandler(handleUploadSuccess)
-        .withFailureHandler(handleUploadFailure)
+        .withSuccessHandler(function(result) {
+          handleUploadSuccess(result, callId);
+        })
+        .withFailureHandler(function(error) {
+          handleUploadFailure(error, callId);
+        })
         .uploadDraft(document.getElementById('requestForm'));
     }
 
-    function handleUploadSuccess(result) {
+    function handleUploadSuccess(result, callId) {
+      if (callId !== singleUploadCallId) {
+        return;
+      }
+
       uploadInProgress = false;
+      clearSingleUploadTimers();
 
       if (!result || !result.success || !result.uploadComplete) {
         handleUploadFailure({
           message: 'Respons upload tidak valid. Silakan coba upload kembali.'
-        });
+        }, callId);
         return;
       }
 
+      hideUploadProgress();
       setUploadStatus(
         'Draft surat berhasil diunggah dan permintaan telah tersimpan lengkap.',
         'complete'
@@ -1746,12 +1860,31 @@
       setRequestAgainVisible(true);
     }
 
-    function handleUploadFailure(error) {
+    function handleUploadFailure(error, callId) {
+      if (callId && callId !== singleUploadCallId) {
+        return;
+      }
+
       uploadInProgress = false;
+      clearSingleUploadTimers();
       var message = error && error.message
         ? error.message
         : 'Draft belum berhasil diunggah karena koneksi atau sistem bermasalah.';
 
+      if (singleUploadAttempt < SINGLE_UPLOAD_MAX_ATTEMPTS && isTransientUploadError(message)) {
+        updateUploadProgress(
+          'Koneksi terputus, mencoba kembali...',
+          'Nomor surat tetap aman. Upload akan diulang otomatis dalam beberapa detik.'
+        );
+        window.setTimeout(function() {
+          if (!uploadInProgress) {
+            startUpload();
+          }
+        }, 1800 * singleUploadAttempt);
+        return;
+      }
+
+      hideUploadProgress();
       setUploadStatus(
         message + ' Nomor tetap tercatat. Jangan pilih file baru; klik tombol di bawah untuk mencoba lagi.',
         'failed'
@@ -1768,7 +1901,97 @@
         );
         return;
       }
+      singleUploadAttempt = 0;
       startUpload();
+    }
+
+    function showUploadProgress() {
+      singleUploadStartedAt = new Date().getTime();
+      document.getElementById('uploadProgress').style.display = 'block';
+      updateUploadProgress(
+        'Menghubungkan ke server...',
+        'Draft sedang disiapkan untuk dikirim. Mohon jangan menutup halaman ini.'
+      );
+      updateUploadElapsed();
+      singleUploadTimerId = window.setInterval(updateUploadElapsed, 1000);
+    }
+
+    function updateUploadElapsed() {
+      var elapsedSeconds = Math.max(0, Math.floor((new Date().getTime() - singleUploadStartedAt) / 1000));
+      var title = 'Mengirim draft surat...';
+      var detail = 'Ukuran file dan kecepatan internet memengaruhi lamanya proses.';
+
+      if (elapsedSeconds < 4) {
+        title = 'Menghubungkan ke server...';
+        detail = 'Draft sedang disiapkan untuk dikirim. Mohon jangan menutup halaman ini.';
+      } else if (elapsedSeconds >= 25) {
+        title = 'Menunggu konfirmasi penyimpanan...';
+        detail = 'Koneksi lebih lambat dari biasanya. Sistem tetap memantau respons server.';
+      }
+
+      updateUploadProgress(title, detail);
+      document.getElementById('uploadElapsed').innerHTML =
+        'Berjalan ' + elapsedSeconds + ' detik';
+    }
+
+    function updateUploadProgress(title, detail) {
+      document.getElementById('uploadProgressTitle').innerHTML = escapeHtml(title);
+      document.getElementById('uploadProgressDetail').innerHTML = escapeHtml(detail);
+      document.getElementById('uploadAttempt').innerHTML =
+        'Percobaan ' + singleUploadAttempt + ' dari ' + SINGLE_UPLOAD_MAX_ATTEMPTS;
+    }
+
+    function startSingleUploadWatchdog(callId) {
+      singleUploadWatchdogId = window.setTimeout(function() {
+        if (callId !== singleUploadCallId || !uploadInProgress) {
+          return;
+        }
+
+        uploadInProgress = false;
+        clearSingleUploadTimers();
+        singleUploadCallId += 1;
+
+        if (singleUploadAttempt < SINGLE_UPLOAD_MAX_ATTEMPTS) {
+          updateUploadProgress(
+            'Server belum merespons, mencoba kembali...',
+            'Nomor surat tetap aman dan tidak akan dibuat ulang.'
+          );
+          window.setTimeout(function() {
+            if (!uploadInProgress) {
+              startUpload();
+            }
+          }, 1800 * singleUploadAttempt);
+          return;
+        }
+
+        hideUploadProgress();
+        setUploadStatus(
+          'Server belum memberikan konfirmasi setelah beberapa percobaan. Nomor tetap tercatat. Klik tombol di bawah untuk mencoba upload kembali.',
+          'failed'
+        );
+        document.getElementById('retryUploadButton').style.display = 'inline-block';
+      }, SINGLE_UPLOAD_WATCHDOG_MS);
+    }
+
+    function clearSingleUploadTimers() {
+      if (singleUploadTimerId) {
+        window.clearInterval(singleUploadTimerId);
+        singleUploadTimerId = null;
+      }
+      if (singleUploadWatchdogId) {
+        window.clearTimeout(singleUploadWatchdogId);
+        singleUploadWatchdogId = null;
+      }
+    }
+
+    function hideUploadProgress() {
+      clearSingleUploadTimers();
+      document.getElementById('uploadProgress').style.display = 'none';
+    }
+
+    function isTransientUploadError(message) {
+      return /failed to fetch|network|koneksi|timeout|timed out|server|service unavailable|internal error/i
+        .test(String(message || ''));
     }
 
     function setUploadStatus(message, state) {
@@ -1790,7 +2013,10 @@
 
       var form = document.getElementById('requestForm');
       form.reset();
+      hideUploadProgress();
       reservedResult = null;
+      singleUploadAttempt = 0;
+      singleUploadCallId += 1;
       document.getElementById('reservedRequestId').value = '';
       document.getElementById('successNumber').innerHTML = '';
       document.getElementById('copyFeedback').innerHTML = '';
