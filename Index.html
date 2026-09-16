@@ -1917,6 +1917,9 @@
     var BULK_ACCESS_TOKEN = null;
     var bulkRowCounter = 0;
     var bulkUploadInProgress = false;
+    var BULK_UPLOAD_MAX_ATTEMPTS = 4;
+    var BULK_UPLOAD_RETRY_BASE_DELAY_MS = 1500;
+    var BULK_UPLOAD_NEXT_ROW_DELAY_MS = 750;
 
     function toggleBulkGate() {
       var gate = document.getElementById('bulkGate');
@@ -1986,6 +1989,7 @@
       document.getElementById('bulkGenerateButton').disabled = false;
       document.getElementById('bulkGenerateButton').innerHTML = 'Buatkan Semua Nomor';
       document.getElementById('bulkRestartButton').style.display = 'none';
+      document.getElementById('bulkRestartButton').disabled = false;
 
       clearBulkRows();
     }
@@ -2133,6 +2137,7 @@
       document.getElementById('bulkUnit').disabled = true;
       document.getElementById('bulkGenerateButton').style.display = 'none';
       document.getElementById('bulkRestartButton').style.display = 'block';
+      document.getElementById('bulkRestartButton').disabled = true;
 
       var uploadQueue = [];
 
@@ -2161,25 +2166,41 @@
       if (position >= queue.length) {
         bulkUploadInProgress = false;
         document.getElementById('bulkUploadWarning').style.display = 'none';
+        document.getElementById('bulkRestartButton').disabled = false;
+        setBulkRetryButtonsEnabled(true);
         return;
       }
       uploadBulkRow(queue[position], function() {
-        processBulkUploadQueue(queue, position + 1);
+        window.setTimeout(function() {
+          processBulkUploadQueue(queue, position + 1);
+        }, BULK_UPLOAD_NEXT_ROW_DELAY_MS);
       });
     }
 
-    function uploadBulkRow(rowIndex, onDone) {
+    function uploadBulkRow(rowIndex, onDone, attempt) {
+      attempt = Number(attempt || 1);
+
       var formEl = document.getElementById('bulkRow' + rowIndex);
       var statusEl = document.getElementById('bulkRowStatus' + rowIndex);
       var spinnerEl = document.getElementById('bulkSpinner' + rowIndex);
       var retryButton = document.getElementById('bulkRetry' + rowIndex);
       var fileInput = document.getElementById('bulkFile' + rowIndex);
 
+      if (!formEl || !statusEl || !spinnerEl || !retryButton || !fileInput) {
+        if (onDone) {
+          onDone();
+        }
+        return;
+      }
+
       formEl.className = 'bulk-row is-uploading';
       statusEl.className = 'bulk-row-status uploading';
-      statusEl.innerHTML = 'Sedang mengunggah draft ini, mohon tunggu...';
+      statusEl.innerHTML = attempt > 1
+        ? 'Mencoba kembali upload (' + attempt + '/' + BULK_UPLOAD_MAX_ATTEMPTS + ')...'
+        : 'Sedang mengunggah draft ini, mohon tunggu...';
       spinnerEl.style.display = 'inline-block';
       retryButton.style.display = 'none';
+      retryButton.disabled = true;
 
       google.script.run
         .withSuccessHandler(function(result) {
@@ -2189,6 +2210,7 @@
             statusEl.className = 'bulk-row-status failed';
             statusEl.innerHTML = 'Gagal.';
             retryButton.style.display = 'inline-block';
+            retryButton.disabled = bulkUploadInProgress;
           } else {
             statusEl.className = 'bulk-row-status done';
             statusEl.innerHTML = 'Selesai';
@@ -2199,11 +2221,30 @@
           }
         })
         .withFailureHandler(function(error) {
+          var message = getBulkUploadErrorMessage(error);
+
+          if (isTransientBulkUploadError(message) &&
+              attempt < BULK_UPLOAD_MAX_ATTEMPTS) {
+            var retryDelay = BULK_UPLOAD_RETRY_BASE_DELAY_MS *
+              Math.pow(2, attempt - 1);
+
+            statusEl.className = 'bulk-row-status uploading';
+            statusEl.innerHTML =
+              'Koneksi upload terputus. Mencoba lagi otomatis dalam ' +
+              Math.ceil(retryDelay / 1000) + ' detik...';
+
+            window.setTimeout(function() {
+              uploadBulkRow(rowIndex, onDone, attempt + 1);
+            }, retryDelay);
+            return;
+          }
+
           formEl.className = 'bulk-row';
           spinnerEl.style.display = 'none';
           statusEl.className = 'bulk-row-status failed';
-          statusEl.innerHTML = escapeHtml(error && error.message ? error.message : 'Gagal.');
+          statusEl.innerHTML = escapeHtml(message);
           retryButton.style.display = 'inline-block';
+          retryButton.disabled = bulkUploadInProgress;
           if (onDone) {
             onDone();
           }
@@ -2212,7 +2253,41 @@
     }
 
     function retryBulkRow(rowIndex) {
-      uploadBulkRow(rowIndex);
+      if (bulkUploadInProgress) {
+        return;
+      }
+
+      bulkUploadInProgress = true;
+      document.getElementById('bulkUploadWarning').style.display = 'block';
+      document.getElementById('bulkRestartButton').disabled = true;
+      setBulkRetryButtonsEnabled(false);
+
+      uploadBulkRow(rowIndex, function() {
+        bulkUploadInProgress = false;
+        document.getElementById('bulkUploadWarning').style.display = 'none';
+        document.getElementById('bulkRestartButton').disabled = false;
+        setBulkRetryButtonsEnabled(true);
+      });
+    }
+
+    function getBulkUploadErrorMessage(error) {
+      return error && error.message
+        ? String(error.message)
+        : 'Upload gagal karena koneksi atau sistem bermasalah.';
+    }
+
+    function isTransientBulkUploadError(message) {
+      return /failed to fetch|network|load failed|connection|timed?\s*out|timeout|temporar|server error|internal error/i
+        .test(String(message || ''));
+    }
+
+    function setBulkRetryButtonsEnabled(enabled) {
+      var buttons = document.querySelectorAll('.bulk-row-retry');
+      for (var i = 0; i < buttons.length; i++) {
+        if (buttons[i].style.display !== 'none') {
+          buttons[i].disabled = !enabled;
+        }
+      }
     }
 
     if (window.addEventListener) {
