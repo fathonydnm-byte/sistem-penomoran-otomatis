@@ -1,5 +1,5 @@
 var ADMIN_EDITABLE_COLUMNS = [
-  {index: 0, key: 'timestamp', label: 'Tanggal dan Waktu Permintaan'},
+  {index: 0, key: 'timestamp', label: 'Tanggal dan Waktu Surat'},
   {index: 1, key: 'number', label: 'Nomor Surat'},
   {index: 2, key: 'documentType', label: 'Jenis Surat'},
   {index: 3, key: 'subject', label: 'Perihal'},
