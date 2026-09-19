@@ -59,6 +59,10 @@ function setupDailyReservations() {
     reservationSheet_(RESERVATION.SLOTS, SLOT_HEADERS);
     reservationSheet_(RESERVATION.EVENTS, EVENT_HEADERS);
     ensureHeaders_(getSpreadsheet_());
+    var dataRows = Math.max(data.getMaxRows() - 1, 1);
+    data.getRange(2, 1, dataRows, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+    data.getRange(2, 19, dataRows, 1).setNumberFormat('dd/MM/yyyy');
+    data.getRange(2, 21, dataRows, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
     ensureStatusValidation_(getSpreadsheet_());
     return {success: true, message: 'Siap. Isi kalender nasional, verifikasi tahun, lalu aktifkan dari menu.'};
   } finally { lock.releaseLock(); }

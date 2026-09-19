@@ -10,6 +10,7 @@
 - PERMINTAAN adalah sumber kebenaran slot tersedia. RESERVASI_NOMOR adalah indeks/audit, bukan penentu ketersediaan.
 - Claim mengganti placeholder dan token dalam satu penulisan. Retry token yang sama mengembalikan nomor yang sama. Upload gagal tidak membebaskan nomor.
 - Kolom A menyimpan tanggal/waktu surat agar identitas nomor tetap melekat pada tanggal slotnya. Kolom S menyimpan kunci tanggal surat (YYYY-MM-DD), T mode, dan U waktu pengajuan aktual untuk audit. Pada permintaan hari ini A dan U bernilai sama; pada permintaan mundur A mengikuti slot sedangkan U mencatat saat pengguna benar-benar mengajukan. Tahun di M mengikuti tanggal surat.
+- Tampilan tanggal di PERMINTAAN menggunakan format Indonesia: A/U `dd/MM/yyyy HH:mm:ss` dan S `dd/MM/yyyy`.
 - Slot dan upload tertunda tidak diarsipkan. Slot tahun lampau tidak mengubah counter tahun berjalan.
 - LOG_PERMINTAAN mencatat penerbitan individual/massal/mundur dan kejadian upload. Log baru dimulai sejak pemasangan; tidak mengarang riwayat sebelum pemasangan. Kegagalan log sekunder dicatat ke execution log dan tidak membatalkan nomor yang sudah terbit; data permintaan utama tetap tersimpan.
 
