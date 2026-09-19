@@ -24,7 +24,7 @@
 
 ## Slot lama
 
-1. Menu Tinjau Slot Kosong Lama membuat TINJAU_SLOT_LAMA. Penanda dibandingkan case-insensitive setelah trim; SK/SE boleh memiliki Dari/Kepada kosong.
+1. Menu Tinjau Slot Kosong Lama membuat TINJAU_SLOT_LAMA. Perihal `Slot Kosong` menjadi penanda utama (case-insensitive setelah trim); Dari/Kepada boleh kosong atau berisi catatan lama.
 2. Tinjau tanggal, nomor, jenis, dan hasil SIAP_DITINJAU. Isi Setujui dengan TRUE hanya pada baris benar-benar kosong.
 3. Impor Slot Lama yang Disetujui memeriksa ulang fingerprint, identitas, dan duplikasi. Berkas placeholder lama tidak dihapus; tautannya dipertahankan di RESERVASI_NOMOR.
 4. Baris meragukan tidak diimpor. Kandidat yang sudah berada di tab arsip ditandai perlu pemindahan admin; tidak otomatis menghapus/memindahkan arsip.
