@@ -99,6 +99,9 @@ function saveAdminEdit(payload) {
   var editedYear = Number(
     Utilities.formatDate(edited.timestamp, APP.TIMEZONE, 'yyyy')
   );
+  if (oldValues[19] === 'MUNDUR' || oldValues[10] === REQUEST_STATUS.RESERVED) {
+    throw new Error('Identitas nomor reservasi tidak boleh diubah melalui editor umum. Hubungi pengelola sistem.');
+  }
   var numberingChanged =
     Number(oldValues[1]) !== Number(edited.number) ||
     String(oldValues[2] || '') !== edited.documentType ||

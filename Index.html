@@ -574,6 +574,7 @@
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       grid-template-areas:
+        "backdate backdate"
         "type unit"
         "subject subject"
         "routing routing"
@@ -1033,6 +1034,7 @@
       #requestForm {
         grid-template-columns: minmax(0, 1fr);
         grid-template-areas:
+          "backdate"
           "type"
           "subject"
           "routing"
@@ -1407,6 +1409,17 @@
       <div id="infoMessage" class="message info" role="status"></div>
 
       <form id="requestForm" onsubmit="submitRequestForm(this); return false;" novalidate>
+        <div style="grid-area:backdate;">
+          <button id="backdateToggle" type="button" onclick="toggleBackdateMode();" style="border:0;background:none;color:#65736b;font-size:12px;text-decoration:underline;cursor:pointer;padding:6px 0;">Butuh nomor untuk tanggal sebelumnya?</button>
+          <div id="backdatePanel" style="display:none;padding:14px;background:#f4f7f5;border:1px solid #d9e2dc;border-radius:8px;">
+            <h3 style="margin:0 0 8px;">Permintaan Nomor Tanggal Sebelumnya</h3>
+            <p style="font-size:13px;">Pilih jenis surat pada formulir dan tanggal surat. Waktu pengajuan sebenarnya tetap dicatat.</p>
+            <label for="letterDate">Tanggal surat (sebelum hari ini, WIB)</label>
+            <input id="letterDate" type="date" onchange="invalidateBackdateCheck();">
+            <button id="checkSlotsButton" type="button" class="secondary-button" onclick="checkBackdateSlots();">Cek Ketersediaan</button>
+            <p id="backdateAvailability" role="status" style="font-size:13px;"></p>
+          </div>
+        </div>
         <input id="requestToken" name="requestToken" type="hidden">
         <input id="reservedRequestId" name="reservedRequestId" type="hidden">
 
@@ -1654,6 +1667,55 @@
     var SINGLE_UPLOAD_WATCHDOG_MS = 60000;
     var uploadInProgress = false;
     var reservedResult = null;
+    var backdateMode = false;
+    var backdateCheckedKey = '';
+    var backdateCheckId = 0;
+
+    function toggleBackdateMode() {
+      if (uploadInProgress || reservedResult || document.getElementById('submitButton').disabled) return;
+      backdateMode = !backdateMode;
+      document.getElementById('backdatePanel').style.display = backdateMode ? 'block' : 'none';
+      document.getElementById('backdateToggle').textContent = backdateMode ?
+        '← Kembali ke permintaan hari ini' : 'Butuh nomor untuk tanggal sebelumnya?';
+      invalidateBackdateCheck();
+    }
+
+    function invalidateBackdateCheck() {
+      backdateCheckId += 1;
+      backdateCheckedKey = '';
+      document.getElementById('backdateAvailability').textContent = '';
+      document.getElementById('checkSlotsButton').disabled = false;
+    }
+
+    function checkBackdateSlots() {
+      var date = document.getElementById('letterDate').value;
+      var type = document.getElementById('documentType').value;
+      if (!date || !type) { showError('Pilih jenis surat dan tanggal surat terlebih dahulu.'); return; }
+      invalidateBackdateCheck();
+      var callId = backdateCheckId;
+      var button = document.getElementById('checkSlotsButton');
+      var output = document.getElementById('backdateAvailability');
+      button.disabled = true;
+      output.textContent = 'Memeriksa ketersediaan...';
+      var timer = window.setTimeout(function() {
+        if (callId !== backdateCheckId) return;
+        backdateCheckId += 1; button.disabled = false;
+        output.textContent = 'Belum ada respons. Silakan coba periksa lagi.';
+      }, 30000);
+      google.script.run.withSuccessHandler(function(result) {
+        window.clearTimeout(timer);
+        if (callId !== backdateCheckId) return;
+        button.disabled = false;
+        backdateCheckedKey = result.count > 0 ? type + '|' + date : '';
+        output.textContent = result.count > 0 ? 'Tersedia ' + result.count +
+          ' nomor cadangan. Lengkapi formulir di bawah. Ketersediaan diperiksa kembali saat dikirim.' :
+          'Nomor cadangan tidak tersedia. Pilih tanggal lain atau hubungi admin Bagian Umum.';
+      }).withFailureHandler(function(error) {
+        window.clearTimeout(timer);
+        if (callId !== backdateCheckId) return;
+        button.disabled = false; output.textContent = error.message || 'Pemeriksaan gagal.';
+      }).checkBackdatedAvailability({documentType:type, letterDate:date});
+    }
     var singleUploadAttempt = 0;
     var singleUploadCallId = 0;
     var singleUploadStartedAt = 0;
@@ -1672,6 +1734,7 @@
     }
 
     function toggleRoutingFields() {
+      invalidateBackdateCheck();
       var type = document.getElementById('documentType').value;
       var fields = document.getElementById('routingFields');
       var from = document.getElementById('from');
@@ -1716,6 +1779,7 @@
       var file = fileInput.files && fileInput.files.length ? fileInput.files[0] : null;
 
       return {
+        letterDate: backdateMode ? document.getElementById('letterDate').value : '',
         documentType: form.documentType.value,
         subject: form.subject.value,
         from: form.from.value,
@@ -1729,6 +1793,9 @@
     }
 
     function validateForm(form) {
+      if (backdateMode && backdateCheckedKey !== document.getElementById('documentType').value + '|' + document.getElementById('letterDate').value) {
+        return 'Periksa ketersediaan nomor untuk tanggal dan jenis surat yang dipilih terlebih dahulu.';
+      }
       var type = form.documentType.value;
       var fileInput = document.getElementById('draft');
       var file = fileInput.files && fileInput.files.length ? fileInput.files[0] : null;
@@ -1777,6 +1844,10 @@
       document.getElementById('reservedRequestId').value = result.requestId;
       document.getElementById('successNumber').innerHTML =
         escapeHtml(String(result.number));
+      if (backdateMode) {
+        document.getElementById('successNumber').innerHTML += '<div style="font-size:14px;letter-spacing:normal;margin-top:12px;">Tanggal surat: ' +
+          escapeHtml(result.letterDate || document.getElementById('letterDate').value) + '</div>';
+      }
       document.getElementById('successPanel').style.display = 'block';
       document.getElementById('requestForm').style.display = 'none';
 
@@ -2047,8 +2118,7 @@
     }
 
     function copyNumber() {
-      var number = document.getElementById('successNumber').innerText ||
-        document.getElementById('successNumber').textContent;
+      var number = reservedResult ? String(reservedResult.number) : '';
       var feedback = document.getElementById('copyFeedback');
 
       if (navigator.clipboard && navigator.clipboard.writeText) {
