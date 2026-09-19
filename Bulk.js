@@ -104,7 +104,8 @@ function reserveBulkRequests(payload) {
         getTemporaryUserKey_(),
         now,
         reservationDateKey_(now),
-        'MASSAL'
+        'MASSAL',
+        now
       ]);
 
       results.push({
