@@ -1905,7 +1905,7 @@
         escapeHtml(String(result.number));
       if (backdateMode) {
         document.getElementById('successNumber').innerHTML += '<div style="font-size:14px;letter-spacing:normal;margin-top:12px;">Tanggal surat: ' +
-          escapeHtml(result.letterDate || document.getElementById('letterDate').value) + '</div>';
+          escapeHtml(formatIndonesianDate(result.letterDate || document.getElementById('letterDate').value)) + '</div>';
       }
       document.getElementById('successPanel').style.display = 'block';
       document.getElementById('requestForm').style.display = 'none';
@@ -2244,6 +2244,12 @@
 
     function trim(value) {
       return String(value || '').replace(/^\s+|\s+$/g, '');
+    }
+
+    function formatIndonesianDate(value) {
+      var text = String(value || '');
+      var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+      return match ? match[3] + '/' + match[2] + '/' + match[1] : text;
     }
 
     function escapeHtml(value) {
