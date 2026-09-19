@@ -108,6 +108,9 @@ function activateDailyReservations() {
 }
 
 function runDailyReservations() {
+  var props = PropertiesService.getScriptProperties();
+  if (!props.getProperty('DAILY_RESERVATION_PENDING') &&
+      props.getProperty('DAILY_RESERVATION_DONE') === reservationDateKey_(new Date())) return;
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(1000)) return;
   try { ensureDailyReservations_(new Date()); } finally { lock.releaseLock(); }
@@ -265,6 +268,7 @@ function reviewLegacySlots() {
     return s.getName() === APP.DATA_SHEET || /^ARSIP_PERMINTAAN_\d{4}$/.test(s.getName());
   });
   var all = [];
+  var additions = [];
   sources.forEach(function(s) { reservationRows_(s, REQUEST_HEADERS.length).forEach(function(r) { all.push({sheet:s, values:r}); }); });
   all.forEach(function(item) {
     var r = item.values;
@@ -280,9 +284,10 @@ function reviewLegacySlots() {
     var safe = legacyCandidate_(r) && DOCUMENT_TYPES[r[2]] && isPositiveInteger_(Number(r[1])) &&
       key && Number(key.slice(0,4)) === Number(r[12]) && r[11] && unique &&
       [REQUEST_STATUS.CANCELLED, REQUEST_STATUS.UPLOADING].indexOf(r[10]) === -1;
-    review.appendRow([item.sheet.getName(), r[11], r[1], r[2], key,
+    additions.push([item.sheet.getName(), r[11], r[1], r[2], key,
       safe ? 'SIAP_DITINJAU' : 'PERIKSA_MANUAL', false, hash, '']);
   });
+  if (additions.length) review.getRange(review.getLastRow()+1, 1, additions.length, 9).setValues(additions);
   getSpreadsheet_().setActiveSheet(review);
 }
 
@@ -293,10 +298,15 @@ function importApprovedLegacySlots() {
     var review = getRequiredSheet_(RESERVATION.REVIEW);
     var target = getRequiredSheet_(APP.DATA_SHEET);
     var ledger = getRequiredSheet_(RESERVATION.SLOTS);
+    var started = Date.now();
+    var sourceRows = {};
+    var indexed = reservationRows_(ledger, SLOT_HEADERS.length);
     reservationRows_(review, 9).forEach(function(r, i) {
       if (r[5] !== 'SIAP_DITINJAU' || String(r[6]).toLowerCase() !== 'true' || r[8]) return;
+      // Resume on the next invocation before the Apps Script execution deadline.
+      if (Date.now() - started > 180000) return;
       var source = getRequiredSheet_(r[0]);
-      var rows = reservationRows_(source, REQUEST_HEADERS.length);
+      var rows = sourceRows[r[0]] || (sourceRows[r[0]] = reservationRows_(source, REQUEST_HEADERS.length));
       var index = rows.findIndex(function(v) { return v[11] === r[1]; });
       if (index < 0 || legacyFingerprint_(rows[index]) !== r[7]) {
         review.getRange(i+2, 6).setValue('DATA_BERUBAH_TINJAU_ULANG'); return;
@@ -308,13 +318,14 @@ function importApprovedLegacySlots() {
       var duplicate = rows.filter(function(v) { return v[2]===old[2] && Number(v[1])===Number(old[1]) && Number(v[12])===Number(old[12]); });
       if (duplicate.length !== 1) throw new Error('Nomor ganda ditemukan saat impor.');
       var id = 'LEGACY-' + old[11];
-      if (!reservationRows_(ledger, SLOT_HEADERS.length).some(function(v) { return v[0] === id; })) {
+      if (!indexed.some(function(v) { return v[0] === id; })) {
         ledger.appendRow([id, r[4], old[2], old[1], 'SLOT_LAMA', new Date(), '', '', old[9]]);
       }
       var slot = old.slice();
       slot[10] = REQUEST_STATUS.RESERVED; slot[11] = id;
       slot[15] = ''; slot[16] = ''; slot[17] = new Date(); slot[18] = r[4]; slot[19] = 'RESERVASI';
       target.getRange(index+2, 1, 1, slot.length).setValues([slot]);
+      rows[index] = slot;
       review.getRange(i+2, 9).setValue(new Date());
     });
     SpreadsheetApp.flush();
