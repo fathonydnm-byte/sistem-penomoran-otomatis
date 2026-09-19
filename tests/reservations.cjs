@@ -102,10 +102,10 @@ test('missing holiday calendar blocks unverified allocation',()=>{
  assert.throws(()=>ctx.ensureDailyReservations_(day('2026-09-21')),/belum diverifikasi/);
  assert.equal(sheets.PERMINTAAN.rows.length,1);
 });
-test('legacy marker requires routing placeholders for routed letters',()=>{
- const row=['',10,'Surat Dinas','Slot Kosong','', ''];assert.equal(ctx.legacyCandidate_(row),false);
- row[4]=row[5]='Slot Kosong';assert.equal(ctx.legacyCandidate_(row),true);
- row[2]='SK/SE';row[4]=row[5]='';assert.equal(ctx.legacyCandidate_(row),true);
+test('legacy marker uses subject regardless of routing placeholders',()=>{
+ const row=['',10,'Surat Dinas','Slot Kosong','', ''];assert.equal(ctx.legacyCandidate_(row),true);
+ row[3]='Surat biasa';row[4]=row[5]='Slot Kosong';assert.equal(ctx.legacyCandidate_(row),false);
+ row[2]='SK/SE';row[3]=' slot kosong ';row[4]=row[5]='';assert.equal(ctx.legacyCandidate_(row),true);
 });
 const html=fs.readFileSync(path.join(root,'Index.html'),'utf8');
 for(const script of html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g))new vm.Script(script[1]);
