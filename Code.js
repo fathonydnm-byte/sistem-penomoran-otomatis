@@ -33,7 +33,9 @@ var REQUEST_HEADERS = [
   'ID File Drive',
   'Token Pengiriman',
   'Kunci Pengguna Sementara',
-  'Diperbarui Pada'
+  'Diperbarui Pada',
+  'Tanggal Surat',
+  'Mode Permintaan'
 ];
 
 var LOG_HEADERS = [
@@ -94,6 +96,7 @@ var DOCUMENT_TYPES = {
 };
 
 var REQUEST_STATUS = {
+  RESERVED: 'SLOT_TERSEDIA',
   WAITING_UPLOAD: 'MENUNGGU_UPLOAD',
   UPLOADING: 'MENGUNGGAH',
   ACTIVE: 'AKTIF',
@@ -117,6 +120,10 @@ function onOpen() {
     .addItem('Arsipkan Data Tahun Lalu', 'archiveOldYearsManual')
     .addSeparator()
     .addItem('Buka Pengaturan Counter', 'openSettingsSheet')
+    .addItem('Siapkan Reservasi Harian', 'setupDailyReservations')
+    .addItem('Aktifkan Reservasi Harian', 'activateDailyReservations')
+    .addItem('Tinjau Slot Kosong Lama', 'reviewLegacySlots')
+    .addItem('Impor Slot Lama yang Disetujui', 'importApprovedLegacySlots')
     .addItem('Instal / Perbaiki Sistem', 'initializeApplication')
     .addToUi();
 }
@@ -207,6 +214,10 @@ function reserveRequest(requestObject) {
     }
 
     var year = Number(Utilities.formatDate(now, APP.TIMEZONE, 'yyyy'));
+    if (requestObject.letterDate) {
+      return claimBackdatedSlot_(request, requestObject.letterDate, now);
+    }
+    ensureDailyReservations_(now);
     var settings = getSettings_();
     settings = resetCountersForNewYearIfNeeded_(settings, year);
 
@@ -232,10 +243,13 @@ function reserveRequest(requestObject) {
       '',
       request.token,
       getTemporaryUserKey_(),
-      now
+      now,
+      reservationDateKey_(now),
+      'HARI_INI'
     ]);
 
     SpreadsheetApp.flush();
+    safeRequestEvent_(dataSheet.getRange(dataSheet.getLastRow(), 1, 1, REQUEST_HEADERS.length).getValues()[0], 'NOMOR_DITERBITKAN');
 
     return {
       success: true,
@@ -553,6 +567,7 @@ function claimUpload_(requestId, token) {
     record.sheet.getRange(record.row, 11).setValue(REQUEST_STATUS.UPLOADING);
     record.sheet.getRange(record.row, 18).setValue(now);
     SpreadsheetApp.flush();
+    safeRequestEvent_(record.values, 'UPLOAD_DIMULAI');
 
     return {
       alreadyComplete: false,
@@ -598,6 +613,7 @@ function finalizeUpload_(requestId, token, originalName, fileId, fileUrl) {
     ]]);
     record.sheet.getRange(record.row, 18).setValue(now);
     SpreadsheetApp.flush();
+    safeRequestEvent_(record.values, 'UPLOAD_SELESAI');
   } finally {
     lock.releaseLock();
   }
@@ -636,6 +652,8 @@ function updateUploadFailure_(requestId, token, error, allowedStatuses) {
     var now = new Date();
     record.sheet.getRange(record.row, 11).setValue(REQUEST_STATUS.UPLOAD_FAILED);
     record.sheet.getRange(record.row, 18).setValue(now);
+
+    safeRequestEvent_(record.values, 'UPLOAD_GAGAL');
 
     appendLogRows_([[
       now,
@@ -933,6 +951,7 @@ function ensureStatusValidation_(spreadsheet) {
 
 function getRequestStatusOptions_() {
   return [
+    REQUEST_STATUS.RESERVED,
     REQUEST_STATUS.WAITING_UPLOAD,
     REQUEST_STATUS.UPLOADING,
     REQUEST_STATUS.ACTIVE,
