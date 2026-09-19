@@ -605,6 +605,47 @@
       grid-area: unit;
     }
 
+    #requestForm.backdate-active .field-unit {
+      grid-area: auto;
+      grid-column: 1 / -1;
+    }
+
+    .backdate-date-row {
+      display: grid;
+      grid-template-columns: minmax(190px, 240px) max-content;
+      gap: 10px;
+      align-items: end;
+      margin-top: 14px;
+    }
+
+    .backdate-date-field label {
+      display: block;
+    }
+
+    #letterDate {
+      width: 100%;
+      min-height: 44px;
+      padding: 9px 11px;
+      border: 1px solid #b8c7be;
+      border-radius: 8px;
+      color: var(--uinsa-ink);
+      background: var(--uinsa-surface);
+      font: inherit;
+    }
+
+    #checkSlotsButton {
+      min-width: 0;
+      min-height: 44px;
+      padding: 9px 14px;
+      white-space: nowrap;
+    }
+
+    #backdateAvailability {
+      min-height: 20px;
+      margin: 12px 0 0;
+      font-size: 13px;
+    }
+
     .field-draft {
       grid-area: draft;
     }
@@ -1045,6 +1086,10 @@
         gap: 16px;
       }
 
+      .backdate-date-row {
+        grid-template-columns: minmax(150px, 1fr) max-content;
+      }
+
       .routing-fields {
         grid-template-columns: minmax(0, 1fr);
       }
@@ -1415,10 +1460,14 @@
             <h3 style="margin:0 0 8px;">Permintaan Nomor Tanggal Sebelumnya</h3>
             <p style="font-size:13px;">Pilih jenis dan tanggal surat. Waktu pengajuan sebenarnya tetap dicatat.</p>
             <div id="backdateTypeMount"></div>
-            <label for="letterDate">Tanggal surat (sebelum hari ini)</label>
-            <input id="letterDate" type="date" onchange="invalidateBackdateCheck();">
-            <button id="checkSlotsButton" type="button" class="secondary-button" onclick="checkBackdateSlots();">Cek Ketersediaan</button>
-            <p id="backdateAvailability" role="status" style="font-size:13px;"></p>
+            <div class="backdate-date-row">
+              <div class="backdate-date-field">
+                <label for="letterDate">Tanggal surat (sebelum hari ini)</label>
+                <input id="letterDate" type="date" onchange="invalidateBackdateCheck();">
+              </div>
+              <button id="checkSlotsButton" type="button" class="secondary-button" onclick="checkBackdateSlots();">Cek Ketersediaan</button>
+            </div>
+            <p id="backdateAvailability" role="status"></p>
           </div>
         </div>
         <input id="requestToken" name="requestToken" type="hidden">
@@ -1676,6 +1725,7 @@
     function toggleBackdateMode() {
       if (uploadInProgress || reservedResult || document.getElementById('submitButton').disabled) return;
       backdateMode = !backdateMode;
+      document.getElementById('requestForm').classList.toggle('backdate-active', backdateMode);
       document.getElementById('backdatePanel').style.display = backdateMode ? 'block' : 'none';
       var typeField = document.getElementById('documentTypeField');
       if (backdateMode) {
