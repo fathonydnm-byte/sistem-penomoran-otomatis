@@ -2,10 +2,9 @@ name: Push kode ke Apps Script
 
 # Otomatis mengirim (clasp push) kode terbaru dari branch ini ke editor
 # Apps Script setiap ada perubahan masuk. Ini HANYA menyalin kode ke editor
-# Apps Script (setara "Save"/clasp push manual) -- TIDAK membuat perubahan
-# langsung live ke pengguna. Membuat deployment versi baru ("Deploy" di
-# Apps Script) tetap dilakukan manual oleh admin sebagai pengecekan akhir
-# sebelum perubahan live ke seluruh pegawai.
+# Apps Script (setara "Save"/clasp push manual). Deployment web app hanya
+# diperbarui jika judul commit mengandung penanda [deploy-webapp], sehingga
+# push rutin tetap tidak langsung mengubah versi live.
 on:
   push:
     branches:
@@ -33,3 +32,10 @@ jobs:
 
       - name: Push ke Apps Script
         run: clasp push --force
+
+      - name: Perbarui deployment web app
+        if: contains(github.event.head_commit.message, '[deploy-webapp]')
+        run: >-
+          clasp deploy
+          --deploymentId "AKfycbz4i88ZxnpnlvDV2bgBH3eebT2m7tAHMRo_vCJOurG1BF6HTzT28dXXss3A97gMp-DH"
+          --description "GitHub ${GITHUB_SHA}"
