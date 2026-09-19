@@ -255,8 +255,8 @@ function legacyFingerprint_(row) {
 
 function legacyCandidate_(row) {
   var marker = function(v) { return String(v || '').trim().toLowerCase() === 'slot kosong'; };
-  return marker(row[3]) && (!DOCUMENT_TYPES[row[2]] || !DOCUMENT_TYPES[row[2]].requiresRouting ||
-    (marker(row[4]) && marker(row[5])));
+  // Perihal is the authoritative legacy marker. Dari/Kepada may be blank or contain old notes.
+  return marker(row[3]);
 }
 
 function reviewLegacySlots() {
@@ -272,9 +272,8 @@ function reviewLegacySlots() {
   sources.forEach(function(s) { reservationRows_(s, REQUEST_HEADERS.length).forEach(function(r) { all.push({sheet:s, values:r}); }); });
   all.forEach(function(item) {
     var r = item.values;
-    if (r[10] === REQUEST_STATUS.RESERVED || ![r[3],r[4],r[5]].some(function(v) {
-      return String(v || '').trim().toLowerCase() === 'slot kosong';
-    })) return;
+    if (r[10] === REQUEST_STATUS.RESERVED ||
+        String(r[3] || '').trim().toLowerCase() !== 'slot kosong') return;
     var hash = legacyFingerprint_(r);
     if (known.some(function(k) { return k[7] === hash; })) return;
     var key = ''; try { key = reservationDateKey_(r[0]); } catch (e) {}
@@ -289,6 +288,22 @@ function reviewLegacySlots() {
   });
   if (additions.length) review.getRange(review.getLastRow()+1, 1, additions.length, 9).setValues(additions);
   getSpreadsheet_().setActiveSheet(review);
+}
+
+function approveAllReadyLegacySlots() {
+  assertAdmin_();
+  var review = getRequiredSheet_(RESERVATION.REVIEW);
+  var rows = reservationRows_(review, 9);
+  if (!rows.length) return {approved: 0};
+  var approved = 0;
+  var values = rows.map(function(r) {
+    var ready = r[5] === 'SIAP_DITINJAU' && !r[8];
+    if (ready) approved++;
+    return [ready];
+  });
+  review.getRange(2, 7, values.length, 1).setValues(values);
+  SpreadsheetApp.flush();
+  return {approved: approved};
 }
 
 function importApprovedLegacySlots() {
