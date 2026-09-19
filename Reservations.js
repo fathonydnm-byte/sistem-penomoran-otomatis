@@ -42,9 +42,9 @@ function setupDailyReservations() {
   var lock = LockService.getScriptLock(); lock.waitLock(30000);
   try {
     var data = getRequiredSheet_(APP.DATA_SHEET);
-    var extraHeaders = data.getRange(1, 19, 1, 2).getValues()[0];
+    var extraHeaders = data.getRange(1, 19, 1, 3).getValues()[0];
     if (extraHeaders.some(function(v, i) { return v && v !== REQUEST_HEADERS[18+i]; })) {
-      throw new Error('Kolom S/T sudah dipakai. Hentikan pemasangan dan periksa struktur data.');
+      throw new Error('Kolom S/T/U sudah dipakai. Hentikan pemasangan dan periksa struktur data.');
     }
     var config = reservationSheet_(RESERVATION.CONFIG, ['Kunci', 'Nilai', 'Keterangan']);
     if (config.getLastRow() === 1) config.getRange(2, 1, 6, 3).setValues([
@@ -177,9 +177,9 @@ function materializeReservationPlan_(plan) {
       if (existing.some(function(r) { return Number(r[1]) === number && r[2] === plan.type && Number(r[12]) === Number(plan.date.slice(0, 4)); })) {
         throw new Error('Benturan counter dengan nomor yang sudah ada. Alokasi dihentikan.');
       }
-      row = [new Date(), number, plan.type, 'Slot Kosong', '', '', '', '', '', '',
+      row = [new Date(plan.date + 'T00:00:00+07:00'), number, plan.type, 'Slot Kosong', '', '', '', '', '', '',
         REQUEST_STATUS.RESERVED, id, Number(plan.date.slice(0, 4)), '', '', '', '',
-        new Date(), plan.date, 'RESERVASI'];
+        new Date(), plan.date, 'RESERVASI', ''];
       data.appendRow(row);
     }
     if (!indexed.some(function(r) { return r[0] === id; })) {
@@ -222,9 +222,9 @@ function claimBackdatedSlot_(request, rawDate, now) {
   var slot = slots[0];
   var old = slot.values;
   var id = Utilities.getUuid();
-  var row = [now, old[1], request.documentType, request.subject, request.from, request.to,
+  var row = [old[0], old[1], request.documentType, request.subject, request.from, request.to,
     request.applicantName, request.unit, getDetectedEmail_(), '', REQUEST_STATUS.WAITING_UPLOAD,
-    id, Number(key.slice(0, 4)), request.draftName, '', request.token, getTemporaryUserKey_(), now, key, 'MUNDUR'];
+    id, Number(key.slice(0, 4)), request.draftName, '', request.token, getTemporaryUserKey_(), now, key, 'MUNDUR', now];
   // Single authoritative write consumes slot AND binds token, so retries never allocate twice.
   getRequiredSheet_(APP.DATA_SHEET).getRange(slot.row, 1, 1, row.length).setValues([row]);
   SpreadsheetApp.flush();
@@ -244,7 +244,7 @@ function safeRequestEvent_(row, event) {
   try {
     var sheet = getSpreadsheet_().getSheetByName(RESERVATION.EVENTS);
     if (!sheet) return;
-    sheet.appendRow([new Date(), row[0], row[18] || reservationDateKey_(row[0]), row[2], row[1],
+    sheet.appendRow([new Date(), row[20] || row[0], row[18] || reservationDateKey_(row[0]), row[2], row[1],
       row[3], row[4], row[5], row[6], row[7], row[8], row[11], row[19] || 'HARI_INI', event]);
   } catch (e) { console.error('Request event failed: ' + row[11] + ' ' + event); }
 }
@@ -339,10 +339,60 @@ function importApprovedLegacySlots() {
       var slot = old.slice();
       slot[10] = REQUEST_STATUS.RESERVED; slot[11] = id;
       slot[15] = ''; slot[16] = ''; slot[17] = new Date(); slot[18] = r[4]; slot[19] = 'RESERVASI';
+      slot[20] = '';
       target.getRange(index+2, 1, 1, slot.length).setValues([slot]);
       rows[index] = slot;
       review.getRange(i+2, 9).setValue(new Date());
     });
     SpreadsheetApp.flush();
+  } finally { lock.releaseLock(); }
+}
+
+/**
+ * Migrasi satu kali untuk pengajuan mundur yang dibuat sebelum kolom U ada.
+ * Kolom A dikembalikan ke waktu/tanggal slot surat, sedangkan waktu pengajuan
+ * aktual lama dipindahkan ke kolom U. Aman dijalankan berulang kali.
+ */
+function migrateBackdatedSubmissionDates() {
+  assertAdmin_();
+  var lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    var book = getSpreadsheet_();
+    ensureHeaders_(book);
+    var data = getRequiredSheet_(APP.DATA_SHEET);
+    var rows = reservationRows_(data, REQUEST_HEADERS.length);
+    var ledgerByRequest = {};
+    reservationRows_(getRequiredSheet_(RESERVATION.SLOTS), SLOT_HEADERS.length).forEach(function(r) {
+      if (r[6]) ledgerByRequest[String(r[6])] = String(r[0] || '');
+    });
+
+    var legacyDates = {};
+    book.getSheets().filter(function(sheet) {
+      return /^CADANGAN_PERMINTAAN_SEBELUM_IMPOR_SLOT_/.test(sheet.getName());
+    }).forEach(function(sheet) {
+      reservationRows_(sheet, Math.max(20, REQUEST_HEADERS.length)).forEach(function(r) {
+        if (r[11]) legacyDates[String(r[11])] = r[0];
+      });
+    });
+
+    var migrated = 0;
+    rows.forEach(function(row, i) {
+      if (row[19] !== 'MUNDUR' || row[20]) return;
+      var actualSubmission = row[0];
+      var slotTimestamp = '';
+      var slotId = ledgerByRequest[String(row[11])] || '';
+      if (slotId.indexOf('LEGACY-') === 0) {
+        slotTimestamp = legacyDates[slotId.slice(7)] || '';
+      }
+      if (!slotTimestamp) {
+        var key = reservationDateKey_(row[18]);
+        slotTimestamp = new Date(key + 'T00:00:00+07:00');
+      }
+      data.getRange(i + 2, 1).setValue(slotTimestamp);
+      data.getRange(i + 2, 21).setValue(actualSubmission);
+      migrated++;
+    });
+    SpreadsheetApp.flush();
+    return {success: true, migrated: migrated};
   } finally { lock.releaseLock(); }
 }
