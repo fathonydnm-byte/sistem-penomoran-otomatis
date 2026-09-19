@@ -63,6 +63,9 @@ test('backdate consumes smallest slot; duplicate token keeps same identity',()=>
  const a=ctx.reserveRequest({...payload,letterDate:'2026-09-21'});
  const b=ctx.reserveRequest({...payload,letterDate:'2026-09-21'});
  assert.equal(a.number,41);assert.equal(b.requestId,a.requestId);
+ const claimed=sheets.PERMINTAAN.rows.find(r=>r[11]===a.requestId);
+ assert.equal(ctx.reservationDateKey_(claimed[0]),'2026-09-21');
+ assert.equal(ctx.reservationDateKey_(claimed[20]),'2026-09-22');
  assert.equal(ctx.availableSlots_('Surat Dinas','2026-09-21').length,3);
  assert.equal(ctx.getSettings_().values.NEXT_SURAT_DINAS,45);
  const c=ctx.reserveRequest({...payload,requestToken:'other',letterDate:'2026-09-21'});assert.equal(c.number,42);
