@@ -67,6 +67,7 @@ function reserveBulkRequests(payload) {
     }
 
     var now = new Date();
+    ensureDailyReservations_(now);
     var year = Number(Utilities.formatDate(now, APP.TIMEZONE, 'yyyy'));
     var settings = getSettings_();
     settings = resetCountersForNewYearIfNeeded_(settings, year);
@@ -101,7 +102,9 @@ function reserveBulkRequests(payload) {
         '',
         token,
         getTemporaryUserKey_(),
-        now
+        now,
+        reservationDateKey_(now),
+        'MASSAL'
       ]);
 
       results.push({
@@ -118,6 +121,7 @@ function reserveBulkRequests(payload) {
       .setValues(rows);
 
     SpreadsheetApp.flush();
+    rows.forEach(function(row) { safeRequestEvent_(row, 'NOMOR_DITERBITKAN'); });
 
     return {
       success: true,
