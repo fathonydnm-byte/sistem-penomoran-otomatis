@@ -9,14 +9,14 @@
 - Counter sudah dimajukan sebelum placeholder ditulis. Rencana alokasi disimpan dahulu di Script Properties untuk melanjutkan penulisan terputus tanpa menerbitkan ulang rentang yang sama.
 - PERMINTAAN adalah sumber kebenaran slot tersedia. RESERVASI_NOMOR adalah indeks/audit, bukan penentu ketersediaan.
 - Claim mengganti placeholder dan token dalam satu penulisan. Retry token yang sama mengembalikan nomor yang sama. Upload gagal tidak membebaskan nomor.
-- Kolom A tetap waktu pengajuan sebenarnya. Kolom S tanggal surat (YYYY-MM-DD), T mode. Tahun di M mengikuti tanggal surat untuk nomor mundur.
+- Kolom A menyimpan tanggal/waktu surat agar identitas nomor tetap melekat pada tanggal slotnya. Kolom S menyimpan kunci tanggal surat (YYYY-MM-DD), T mode, dan U waktu pengajuan aktual untuk audit. Pada permintaan hari ini A dan U bernilai sama; pada permintaan mundur A mengikuti slot sedangkan U mencatat saat pengguna benar-benar mengajukan. Tahun di M mengikuti tanggal surat.
 - Slot dan upload tertunda tidak diarsipkan. Slot tahun lampau tidak mengubah counter tahun berjalan.
 - LOG_PERMINTAAN mencatat penerbitan individual/massal/mundur dan kejadian upload. Log baru dimulai sejak pemasangan; tidak mengarang riwayat sebelum pemasangan. Kegagalan log sekunder dicatat ke execution log dan tidak membatalkan nomor yang sudah terbit; data permintaan utama tetap tersimpan.
 
 ## Pemasangan
 
 1. Gabungkan perubahan sebagai satu paket, lalu clasp push seluruh file termasuk Reservations.js. Jangan deploy sebagian file.
-2. Jalankan setupDailyReservations sebagai admin. Pemeriksaan header S/T mencegah menimpa kolom lain. KONFIGURASI_RESERVASI dibuat nonaktif.
+2. Jalankan setupDailyReservations sebagai admin. Pemeriksaan header S/T/U mencegah menimpa kolom lain. KONFIGURASI_RESERVASI dibuat nonaktif.
 3. Isi HARI_LIBUR dengan daftar nasional resmi. Isi TAHUN_KALENDER_DIVERIFIKASI (misalnya 2026,2027) hanya setelah seluruh tanggal tahun itu diperiksa. Tahun yang belum diverifikasi menghentikan penerbitan biasa saat reservasi aktif supaya hari libur tidak diasumsikan hari kerja.
 4. Deploy versi baru pada deployment yang sama, lalu jalankan activateDailyReservations dari editor/menu. Jalankan saat pergantian hari atau hari libur untuk menghindari slot di tengah urutan hari berjalan. Aktivasi di tengah hari akan memakai nomor berikutnya; nomor yang sudah diterbitkan tidak diubah.
 5. Uji satu permintaan nyata yang memang diperlukan; jangan membuat nomor produksi hanya untuk uji. Uji lokal: `node tests/reservations.cjs`.
