@@ -187,6 +187,10 @@ function runArchive_(reason, actorEmail) {
 }
 
 function yearFromRequestRow_(row) {
+  // Slots and unfinished uploads must remain reachable after year rollover.
+  if ([REQUEST_STATUS.RESERVED, REQUEST_STATUS.WAITING_UPLOAD,
+       REQUEST_STATUS.UPLOADING, REQUEST_STATUS.UPLOAD_FAILED].indexOf(row[10]) !== -1 ||
+      String(row[3] || '').trim().toLowerCase() === 'slot kosong') return NaN;
   return Number(row[12]);
 }
 
