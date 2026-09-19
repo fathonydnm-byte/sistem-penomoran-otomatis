@@ -123,6 +123,7 @@ function onOpen() {
     .addItem('Siapkan Reservasi Harian', 'setupDailyReservations')
     .addItem('Aktifkan Reservasi Harian', 'activateDailyReservations')
     .addItem('Tinjau Slot Kosong Lama', 'reviewLegacySlots')
+    .addItem('Setujui Semua Slot Lama Siap', 'approveAllReadyLegacySlots')
     .addItem('Impor Slot Lama yang Disetujui', 'importApprovedLegacySlots')
     .addItem('Instal / Perbaiki Sistem', 'initializeApplication')
     .addToUi();
