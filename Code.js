@@ -16,7 +16,7 @@ var APP = {
 var SPREADSHEET_INSTANCE_ = null;
 
 var REQUEST_HEADERS = [
-  'Tanggal dan Waktu Permintaan',
+  'Tanggal dan Waktu Surat',
   'Nomor Surat',
   'Jenis Surat',
   'Perihal',
@@ -35,7 +35,8 @@ var REQUEST_HEADERS = [
   'Kunci Pengguna Sementara',
   'Diperbarui Pada',
   'Tanggal Surat',
-  'Mode Permintaan'
+  'Mode Permintaan',
+  'Waktu Pengajuan Aktual'
 ];
 
 var LOG_HEADERS = [
@@ -246,7 +247,8 @@ function reserveRequest(requestObject) {
       getTemporaryUserKey_(),
       now,
       reservationDateKey_(now),
-      'HARI_INI'
+      'HARI_INI',
+      now
     ]);
 
     SpreadsheetApp.flush();
