@@ -1413,8 +1413,9 @@
           <button id="backdateToggle" type="button" onclick="toggleBackdateMode();" style="border:0;background:none;color:#65736b;font-size:12px;text-decoration:underline;cursor:pointer;padding:6px 0;">Butuh nomor untuk tanggal sebelumnya?</button>
           <div id="backdatePanel" style="display:none;padding:14px;background:#f4f7f5;border:1px solid #d9e2dc;border-radius:8px;">
             <h3 style="margin:0 0 8px;">Permintaan Nomor Tanggal Sebelumnya</h3>
-            <p style="font-size:13px;">Pilih jenis surat pada formulir dan tanggal surat. Waktu pengajuan sebenarnya tetap dicatat.</p>
-            <label for="letterDate">Tanggal surat (sebelum hari ini, WIB)</label>
+            <p style="font-size:13px;">Pilih jenis dan tanggal surat. Waktu pengajuan sebenarnya tetap dicatat.</p>
+            <div id="backdateTypeMount"></div>
+            <label for="letterDate">Tanggal surat (sebelum hari ini)</label>
             <input id="letterDate" type="date" onchange="invalidateBackdateCheck();">
             <button id="checkSlotsButton" type="button" class="secondary-button" onclick="checkBackdateSlots();">Cek Ketersediaan</button>
             <p id="backdateAvailability" role="status" style="font-size:13px;"></p>
@@ -1422,8 +1423,9 @@
         </div>
         <input id="requestToken" name="requestToken" type="hidden">
         <input id="reservedRequestId" name="reservedRequestId" type="hidden">
+        <span id="documentTypeHome" style="display:none;"></span>
 
-        <div class="field field-type">
+        <div id="documentTypeField" class="field field-type">
           <label for="documentType">Jenis Surat <span class="required">*</span></label>
           <select id="documentType" name="documentType" required onchange="toggleRoutingFields();">
             <option value="">-- Pilih jenis surat --</option>
@@ -1675,6 +1677,13 @@
       if (uploadInProgress || reservedResult || document.getElementById('submitButton').disabled) return;
       backdateMode = !backdateMode;
       document.getElementById('backdatePanel').style.display = backdateMode ? 'block' : 'none';
+      var typeField = document.getElementById('documentTypeField');
+      if (backdateMode) {
+        document.getElementById('backdateTypeMount').appendChild(typeField);
+      } else {
+        var home = document.getElementById('documentTypeHome');
+        home.parentNode.insertBefore(typeField, home.nextSibling);
+      }
       document.getElementById('backdateToggle').textContent = backdateMode ?
         '← Kembali ke permintaan hari ini' : 'Butuh nomor untuk tanggal sebelumnya?';
       invalidateBackdateCheck();
