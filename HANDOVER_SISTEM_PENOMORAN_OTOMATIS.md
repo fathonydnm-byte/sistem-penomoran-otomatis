@@ -399,7 +399,7 @@ Menu `Administrasi Nomor Surat` menyediakan:
 9. Impor Slot Lama yang Disetujui
 10. Instal / Perbaiki Sistem
 
-Edit admin memakai token HMAC yang terikat pada baris, ID permintaan, dan admin. Perubahan menyimpan nilai lama, nilai baru, alasan, serta email admin. Baris reservasi/backdate tertentu diproteksi dari edit yang dapat merusak relasi tanggal dan nomor.
+Edit admin memakai token HMAC yang terikat pada baris, ID permintaan, dan admin. Perubahan menyimpan nilai lama, nilai baru, alasan, serta email admin. Semua record dapat diedit, termasuk permintaan mundur dan placeholder reservasi. Bila tanggal/jenis/nomor record reservasi berubah, editor menyelaraskan `PERMINTAAN` dan `RESERVASI_NOMOR` di bawah script lock yang sama. ID internal, status, mode, token, dan waktu pengajuan aktual tidak diedit dari dialog umum.
 
 Pembatalan mengubah status tetapi tidak menghapus baris dan tidak mendaur ulang nomor.
 
@@ -566,6 +566,10 @@ Nomor dapat tampak melompat karena reservasi harian sudah mengambil blok nomor. 
 
 Tes juga memastikan JavaScript pada `Index.html` dapat diparse.
 
+`tests/admin-edit.cjs` menguji akses edit untuk record biasa, permintaan
+mundur, dan placeholder reservasi; relasi ledger; penolakan identitas
+reservasi ganda; serta parsing JavaScript pada `EditDialog.html`.
+
 ## 24. Catatan operasional dan risiko
 
 1. **Versi schema konfigurasi.** Source default saat ini `2.2.0`, sedangkan nilai live `PENGATURAN!SCHEMA_VERSION` terbaca `2.1.1` saat verifikasi. Ini bukan perbedaan source/deployment: `ensureDefaultSettings_()` hanya mengisi kunci yang belum ada dan tidak menimpa nilai lama. Selaraskan secara manual setelah memastikan seluruh migrasi schema 2.2.0 sudah lengkap.
@@ -589,6 +593,7 @@ Tes juga memastikan JavaScript pada `Index.html` dapat diparse.
 | 19 Sep 2026 | Format tanggal Indonesia dan pemisahan tanggal surat/waktu pengajuan |
 | 19 Sep 2026 | Deployment live revisi backdate dari commit `66c521b` |
 | 25 Sep 2026 | Verifikasi ulang sinkronisasi, tes regresi, dan pembuatan dokumen handover ini |
+| 30 Sep 2026 | Editor admin dibuka untuk seluruh record dan menyelaraskan perubahan identitas reservasi ke ledger |
 
 ## 26. Checklist handover singkat
 
