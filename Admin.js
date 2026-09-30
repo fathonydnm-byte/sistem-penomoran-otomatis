@@ -8,7 +8,9 @@ var ADMIN_EDITABLE_COLUMNS = [
   {index: 6, key: 'applicantName', label: 'Nama Pemohon'},
   {index: 7, key: 'unit', label: 'Unit Kerja'},
   {index: 8, key: 'email', label: 'Email Terdeteksi'},
-  {index: 9, key: 'fileUrl', label: 'Link Alih Media'}
+  {index: 9, key: 'fileUrl', label: 'Link Alih Media'},
+  {index: 12, key: 'year', label: 'Tahun Nomor (otomatis)'},
+  {index: 18, key: 'letterDate', label: 'Tanggal Surat (otomatis)'}
 ];
 
 function showEditDialog() {
@@ -57,7 +59,8 @@ function getRequestForEditData_(rowNumber) {
     unit: String(values[7] || ''),
     email: String(values[8] || ''),
     fileUrl: String(values[9] || ''),
-    status: String(values[10] || '')
+    status: String(values[10] || ''),
+    mode: String(values[19] || '')
   };
 }
 
@@ -94,14 +97,14 @@ function saveAdminEdit(payload) {
   }
 
   var edited = normalizeAdminPayload_(payload);
-  validateAdminPayload_(edited);
+  var isReservationPlaceholder =
+    String(oldValues[10] || '') === REQUEST_STATUS.RESERVED;
+  validateAdminPayload_(edited, isReservationPlaceholder);
 
   var editedYear = Number(
     Utilities.formatDate(edited.timestamp, APP.TIMEZONE, 'yyyy')
   );
-  if (oldValues[19] === 'MUNDUR' || oldValues[10] === REQUEST_STATUS.RESERVED) {
-    throw new Error('Identitas nomor reservasi tidak boleh diubah melalui editor umum. Hubungi pengelola sistem.');
-  }
+  var editedLetterDate = reservationDateKey_(edited.timestamp);
   var numberingChanged =
     Number(oldValues[1]) !== Number(edited.number) ||
     String(oldValues[2] || '') !== edited.documentType ||
@@ -135,6 +138,9 @@ function saveAdminEdit(payload) {
   newValues[9] = edited.fileUrl;
   newValues[12] = editedYear;
   newValues[17] = new Date();
+  // Kolom A adalah tanggal/waktu surat. Kolom S menyimpan kunci tanggal surat
+  // yang dipakai pencarian slot. Keduanya wajib selalu bergerak bersama.
+  newValues[18] = editedLetterDate;
 
   var logRows = buildEditLogRows_(
     oldValues,
@@ -176,8 +182,55 @@ function saveAdminEdit(payload) {
       );
     }
 
-    sheet.getRange(rowNumber, 1, 1, REQUEST_HEADERS.length)
-      .setValues([newValues]);
+    // Validasi indeks reservasi dilakukan di dalam lock yang sama. Untuk slot
+    // kosong ID permintaan adalah ID slot; setelah diklaim, ID permintaan
+    // pemakai tersimpan di kolom G ledger.
+    var reservationLedgerRecord =
+      findReservationLedgerRecordForAdminEdit_(latestValues);
+    if (reservationLedgerRecord) {
+      assertUniqueReservationLedgerIdentity_(
+        reservationLedgerRecord.sheet,
+        editedLetterDate,
+        edited.documentType,
+        edited.number,
+        reservationLedgerRecord.rowNumber
+      );
+    }
+
+    try {
+      sheet.getRange(rowNumber, 1, 1, REQUEST_HEADERS.length)
+        .setValues([newValues]);
+
+      if (reservationLedgerRecord) {
+        reservationLedgerRecord.sheet
+          .getRange(reservationLedgerRecord.rowNumber, 2, 1, 3)
+          .setValues([[
+            editedLetterDate,
+            edited.documentType,
+            edited.number
+          ]]);
+      }
+      SpreadsheetApp.flush();
+    } catch (writeError) {
+      // Dua sheet tidak mendukung transaksi atomik. Upayakan rollback sebelum
+      // lock dilepas jika salah satu penulisan gagal.
+      try {
+        sheet.getRange(rowNumber, 1, 1, REQUEST_HEADERS.length)
+          .setValues([latestValues]);
+        if (reservationLedgerRecord) {
+          reservationLedgerRecord.sheet
+            .getRange(reservationLedgerRecord.rowNumber, 2, 1, 3)
+            .setValues([reservationLedgerRecord.values.slice(1, 4)]);
+        }
+        SpreadsheetApp.flush();
+      } catch (rollbackError) {
+        console.error('Rollback edit admin gagal: ' + rollbackError);
+      }
+      throw new Error(
+        'Perubahan gagal disimpan secara lengkap dan telah dibatalkan. ' +
+        'Silakan periksa kedua sheet sebelum mencoba lagi.'
+      );
+    }
 
     if (numberingChanged) {
       keepCounterAheadOfEdit_(
@@ -195,6 +248,84 @@ function saveAdminEdit(payload) {
     };
   } finally {
     lock.releaseLock();
+  }
+}
+
+/**
+ * Menemukan satu-satunya ledger yang terhubung dengan baris reservasi.
+ * Record biasa mengembalikan null. Record reservasi wajib memiliki ledger
+ * agar koreksi admin tidak membuat PERMINTAAN dan RESERVASI_NOMOR berbeda.
+ */
+function findReservationLedgerRecordForAdminEdit_(requestValues) {
+  var mode = String(requestValues[19] || '');
+  var status = String(requestValues[10] || '');
+  if (mode !== 'MUNDUR' && mode !== 'RESERVASI' &&
+      status !== REQUEST_STATUS.RESERVED) {
+    return null;
+  }
+
+  var requestId = String(requestValues[11] || '');
+  if (!requestId) {
+    throw new Error('ID permintaan reservasi tidak ditemukan. Edit dibatalkan.');
+  }
+
+  var ledger = getRequiredSheet_(RESERVATION.SLOTS);
+  var matches = [];
+  reservationRows_(ledger, SLOT_HEADERS.length).forEach(function(row, index) {
+    if (String(row[0] || '') === requestId ||
+        String(row[6] || '') === requestId) {
+      matches.push({
+        sheet: ledger,
+        rowNumber: index + 2,
+        values: row
+      });
+    }
+  });
+
+  if (matches.length !== 1) {
+    throw new Error(
+      matches.length
+        ? 'Ditemukan lebih dari satu indeks reservasi untuk permintaan ini. Edit dibatalkan.'
+        : 'Indeks reservasi tidak ditemukan. Jalankan rekonsiliasi sebelum mengedit data ini.'
+    );
+  }
+  return matches[0];
+}
+
+function assertUniqueReservationLedgerIdentity_(
+  ledger,
+  letterDate,
+  documentType,
+  number,
+  excludedRow
+) {
+  var duplicateRow = 0;
+  reservationRows_(ledger, SLOT_HEADERS.length).some(function(row, index) {
+    var rowNumber = index + 2;
+    if (rowNumber === excludedRow) return false;
+    if (!row[1]) return false;
+    var rowDate;
+    try {
+      rowDate = reservationDateKey_(row[1]);
+    } catch (invalidDateError) {
+      return false;
+    }
+    if (
+      rowDate === letterDate &&
+      String(row[2] || '') === documentType &&
+      Number(row[3]) === Number(number)
+    ) {
+      duplicateRow = rowNumber;
+      return true;
+    }
+    return false;
+  });
+
+  if (duplicateRow) {
+    throw new Error(
+      'Identitas tanggal, jenis, dan nomor tersebut sudah ada di indeks ' +
+      'reservasi baris ' + duplicateRow + '.'
+    );
   }
 }
 
@@ -505,7 +636,7 @@ function normalizeAdminPayload_(payload) {
   };
 }
 
-function validateAdminPayload_(edited) {
+function validateAdminPayload_(edited, isReservationPlaceholder) {
   if (!(edited.timestamp instanceof Date) || isNaN(edited.timestamp.getTime())) {
     throw new Error('Tanggal dan waktu tidak valid.');
   }
@@ -518,11 +649,14 @@ function validateAdminPayload_(edited) {
   if (!edited.subject) {
     throw new Error('Perihal wajib diisi.');
   }
-  if (!edited.applicantName) {
+  if (!isReservationPlaceholder && !edited.applicantName) {
     throw new Error('Nama pemohon wajib diisi.');
   }
-  if (UNIT_OPTIONS.indexOf(edited.unit) === -1) {
+  if (edited.unit && UNIT_OPTIONS.indexOf(edited.unit) === -1) {
     throw new Error('Unit kerja tidak valid.');
+  }
+  if (!isReservationPlaceholder && !edited.unit) {
+    throw new Error('Unit kerja wajib diisi.');
   }
   if (edited.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(edited.email)) {
     throw new Error('Format email tidak valid.');
@@ -533,7 +667,8 @@ function validateAdminPayload_(edited) {
     );
   }
 
-  if (DOCUMENT_TYPES[edited.documentType].requiresRouting) {
+  if (!isReservationPlaceholder &&
+      DOCUMENT_TYPES[edited.documentType].requiresRouting) {
     if (!edited.from || !edited.to) {
       throw new Error(
         'Kolom Dari dan Kepada wajib diisi untuk Surat Dinas atau Nota Dinas.'
