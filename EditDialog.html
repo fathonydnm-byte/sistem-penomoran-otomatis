@@ -115,7 +115,11 @@
     <div class="notice">
       Semua perubahan akan dicatat di tab <strong>LOG_PERUBAHAN</strong>.
       Nomor baru akan diperiksa agar tidak duplikat.
+      Untuk permintaan nomor mundur, perubahan tanggal/jenis/nomor juga akan
+      diselaraskan ke indeks reservasi.
     </div>
+
+    <div id="reservationNotice" class="notice" style="display:none;"></div>
 
     <div id="error" class="error"></div>
     <div id="success" class="success"></div>
@@ -132,7 +136,7 @@
       <input id="editToken" name="editToken" type="hidden">
 
       <div class="field">
-        <label for="timestamp">Tanggal dan Waktu Permintaan</label>
+        <label for="timestamp">Tanggal dan Waktu Surat</label>
         <input id="timestamp" name="timestamp" type="text" required placeholder="YYYY-MM-DD HH:mm:ss">
       </div>
 
@@ -173,6 +177,7 @@
       <div class="field">
         <label for="unit">Unit Kerja</label>
         <select id="unit" name="unit" required>
+          <option value="">-- Belum diisi (slot reservasi) --</option>
           <option>Bagian Umum</option>
           <option>Bagian Perencanaan</option>
           <option>Bagian Organisasi dan Kepegawaian</option>
@@ -232,6 +237,7 @@
 
     function populateForm(data) {
       setBusy(false);
+      var isReservationPlaceholder = data.status === 'SLOT_TERSEDIA';
       document.getElementById('editToken').value = data.editToken || '';
       document.getElementById('requestId').value = data.requestId || '';
       document.getElementById('timestamp').value = data.timestamp || '';
@@ -240,10 +246,29 @@
       document.getElementById('subject').value = data.subject || '';
       document.getElementById('from').value = data.from || '';
       document.getElementById('to').value = data.to || '';
-      document.getElementById('applicantName').value = data.applicantName || '';
-      document.getElementById('unit').value = data.unit || 'Bagian Umum';
+      var applicantElement = document.getElementById('applicantName');
+      var unitElement = document.getElementById('unit');
+      applicantElement.value = data.applicantName || '';
+      applicantElement.required = !isReservationPlaceholder;
+      unitElement.value = data.unit || (isReservationPlaceholder ? '' : 'Bagian Umum');
+      unitElement.required = !isReservationPlaceholder;
       document.getElementById('email').value = data.email || '';
       document.getElementById('fileUrl').value = data.fileUrl || '';
+
+      var reservationNotice = document.getElementById('reservationNotice');
+      reservationNotice.style.display = 'none';
+      if (isReservationPlaceholder) {
+        reservationNotice.innerHTML =
+          '<strong>Slot reservasi belum dipakai.</strong> Perubahan identitas ' +
+          'tanggal, jenis, atau nomor akan diselaraskan ke ledger. Status tetap ' +
+          'SLOT_TERSEDIA dan isi detail dapat ditimpa ketika slot diambil pemohon.';
+        reservationNotice.style.display = 'block';
+      } else if (data.mode === 'MUNDUR') {
+        reservationNotice.innerHTML =
+          '<strong>Permintaan nomor mundur.</strong> Tanggal dan Waktu Surat ' +
+          'menentukan tanggal nomor reservasi; Waktu Pengajuan Aktual tidak diubah.';
+        reservationNotice.style.display = 'block';
+      }
     }
 
     function prepareDirectSave(form) {
