@@ -29,7 +29,7 @@
 2. Tinjau tanggal, nomor, jenis, dan hasil SIAP_DITINJAU. Isi Setujui dengan TRUE hanya pada baris benar-benar kosong.
 3. Impor Slot Lama yang Disetujui memeriksa ulang fingerprint, identitas, dan duplikasi. Berkas placeholder lama tidak dihapus; tautannya dipertahankan di RESERVASI_NOMOR.
 4. Baris meragukan tidak diimpor. Kandidat yang sudah berada di tab arsip ditandai perlu pemindahan admin; tidak otomatis menghapus/memindahkan arsip.
-5. Jangan mengubah nomor/tanggal/status placeholder secara manual setelah diaktifkan. Editor umum memblokir pengubahan permintaan mundur dan slot untuk menjaga identitas nomor.
+5. Jangan mengubah nomor/tanggal/status langsung pada sel setelah fitur diaktifkan. Gunakan menu Edit Permintaan Terpilih. Editor admin mengizinkan semua record, termasuk permintaan mundur dan placeholder reservasi, serta menyelaraskan tanggal/jenis/nomor ke RESERVASI_NOMOR di bawah script lock yang sama. ID internal, status, mode, token, dan waktu pengajuan aktual tetap dipertahankan. Detail pada placeholder berstatus SLOT_TERSEDIA dapat ditimpa ketika slot nanti diklaim pemohon.
 
 ## Batas pengujian
 
