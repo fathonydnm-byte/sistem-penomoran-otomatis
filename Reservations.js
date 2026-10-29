@@ -240,7 +240,7 @@ function claimBackdatedSlot_(request, rawDate, now) {
     });
   } catch (e) { console.error('Slot index needs reconciliation: ' + id); }
   safeRequestEvent_(row, 'NOMOR_MUNDUR_DITERBITKAN');
-  return {success: true, number: row[1], requestId: id, letterDate: key,
+  return {success: true, number: row[1], requestId: id, letterDate: key, documentType: request.documentType,
     status: row[10], uploadComplete: false};
 }
 
@@ -400,3 +400,4 @@ function migrateBackdatedSubmissionDates() {
     return {success: true, migrated: migrated};
   } finally { lock.releaseLock(); }
 }
+

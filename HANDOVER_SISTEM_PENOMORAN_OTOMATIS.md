@@ -1,5 +1,11 @@
 # Handover Sistem Penomoran Surat Otomatis
 
+> Pembaruan 29 Oktober 2026: modul generator kode lengkap opsional ditambahkan
+> pada hasil pengajuan individual Surat Dinas dan Nota Dinas. Rincian perilaku,
+> sumber master Excel, konfirmasi `TL.03`, integrasi, pengujian, serta deployment
+> tersedia di [docs/generator-kode-surat.md](docs/generator-kode-surat.md).
+> Tabel status verifikasi historis di bawah tetap menggambarkan audit sebelumnya.
+
 > Dokumen induk teknis dan operasional untuk pemeliharaan, pengembangan lanjutan, audit, serta serah terima aplikasi Google Apps Script + Google Sheets milik Bagian Umum UIN Sunan Ampel Surabaya.
 
 ## 1. Ringkasan status
@@ -626,3 +632,4 @@ Jangan menyimpulkan nomor bebas hanya karena file Drive tidak ditemukan. Keputus
 ---
 
 Dokumen ini tidak menyimpan kredensial. Saat memperbarui dokumen, gunakan tanggal absolut, commit SHA, dan nomor workflow run agar histori mudah diverifikasi.
+

@@ -1566,6 +1566,7 @@
         <div id="successNumber" class="success-number"></div>
         <button class="secondary-button" type="button" onclick="copyNumber();">Salin Nomor</button>
         <div id="copyFeedback" class="copy-feedback"></div>
+        <?!= includeLetterCodeGenerator_(); ?>
         <div id="uploadProgress" class="upload-progress" role="status" aria-live="polite">
           <div class="upload-progress-head">
             <span class="upload-spinner" aria-hidden="true"></span>
@@ -1899,6 +1900,7 @@
       }
 
       reservedResult = result;
+      LetterCodeGenerator.configure(result);
       singleUploadAttempt = 0;
       document.getElementById('reservedRequestId').value = result.requestId;
       document.getElementById('successNumber').innerHTML =
@@ -2145,6 +2147,7 @@
       form.reset();
       hideUploadProgress();
       reservedResult = null;
+      LetterCodeGenerator.reset();
       singleUploadAttempt = 0;
       singleUploadCallId += 1;
       document.getElementById('reservedRequestId').value = '';
@@ -2664,3 +2667,4 @@
   </script>
 </body>
 </html>
+
