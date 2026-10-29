@@ -107,9 +107,13 @@ var REQUEST_STATUS = {
 };
 
 function doGet() {
-  return HtmlService.createHtmlOutputFromFile('Index')
+  return HtmlService.createTemplateFromFile('Index').evaluate()
     .setTitle(APP.TITLE)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+function includeLetterCodeGenerator_() {
+  return HtmlService.createHtmlOutputFromFile('LetterCodes').getContent();
 }
 
 function onOpen() {
@@ -209,6 +213,8 @@ function reserveRequest(requestObject) {
         success: true,
         number: duplicate.number,
         requestId: duplicate.requestId,
+        documentType: duplicate.documentType,
+        letterDate: duplicate.letterDate,
         status: duplicate.status,
         uploadComplete: duplicate.status === REQUEST_STATUS.ACTIVE,
         duplicateSubmission: true
@@ -258,6 +264,8 @@ function reserveRequest(requestObject) {
       success: true,
       number: reservedNumber,
       requestId: requestId,
+      documentType: request.documentType,
+      letterDate: reservationDateKey_(now),
       status: REQUEST_STATUS.WAITING_UPLOAD,
       uploadComplete: false,
       duplicateSubmission: false
@@ -516,9 +524,17 @@ function findExistingByToken_(token) {
     var values = sheet.getRange(row, 1, 1, REQUEST_HEADERS.length).getValues()[0];
     var status = String(values[10] || '');
     if (status !== REQUEST_STATUS.FAILED) {
+      var letterDate = '';
+      try {
+        letterDate = reservationDateKey_(values[18] || values[0]);
+      } catch (dateError) {
+        // Nomor lama tetap dapat dipulihkan meskipun metadata tanggal tidak lengkap.
+      }
       return {
         number: values[1],
         requestId: values[11],
+        documentType: String(values[2] || ''),
+        letterDate: letterDate,
         status: status
       };
     }
@@ -1071,3 +1087,4 @@ function toUserSafeError_(error) {
   }
   return message.substring(0, 500);
 }
+

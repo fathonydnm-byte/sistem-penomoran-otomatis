@@ -1,0 +1,1141 @@
+<style>
+  #letterCodeOffer[hidden], #letterCodeFields[hidden], #letterCodeTertiaryField[hidden], #letterCodeOnBehalf[hidden] { display: none !important; }
+  .letter-code-offer { margin-top: 22px; padding: 18px; border: 1px solid #cbded1; border-radius: 12px; background: #f5faf6; text-align: left; }
+  .letter-code-offer .lc-heading { margin: 0 0 10px; color: #174e35; font-size: 16px; font-weight: 700; }
+  .letter-code-offer .lc-note { margin: 10px 0; color: #526159; font-size: 13px; line-height: 1.5; }
+  .letter-code-offer .lc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+  .letter-code-offer .lc-field { min-width: 0; }
+  .letter-code-offer .lc-wide { grid-column: 1 / -1; }
+  .letter-code-offer label { display: block; margin: 0 0 6px; color: #293f31; font-size: 14px; font-weight: 600; }
+  .letter-code-offer select, .letter-code-offer input, .letter-code-offer textarea { box-sizing: border-box; width: 100%; max-width: 100%; min-height: 44px; padding: 10px; border: 1px solid #b5c9bc; border-radius: 7px; background: #fff; color: #203629; font: inherit; font-size: 14px; }
+  .letter-code-offer input[readonly] { background: #eaf1ec; }
+  .letter-code-offer select:focus, .letter-code-offer textarea:focus, .letter-code-offer input:focus { outline: 2px solid #14774c; outline-offset: 2px; }
+  .letter-code-offer .lc-result { min-height: 82px; margin-top: 6px; resize: vertical; font-family: monospace; font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
+  .letter-code-offer .lc-result-field { margin-top: 18px; }
+  .letter-code-offer button { white-space: normal; }
+  .letter-code-offer button:disabled { opacity: .55; cursor: not-allowed; }
+  .letter-code-offer .lc-feedback { min-height: 20px; margin: 8px 0 0; color: #315c42; font-size: 13px; }
+  @media (max-width: 560px) { .letter-code-offer { padding: 14px; } .letter-code-offer .lc-grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<div id="letterCodeOffer" class="letter-code-offer" hidden>
+  <p class="lc-heading">Butuh rekomendasi kode lengkap untuk surat?</p>
+  <button id="letterCodeOpen" class="secondary-button" type="button" aria-expanded="false" aria-controls="letterCodeFields">Buat Kode Lengkap Surat</button>
+  <div id="letterCodeFields" hidden>
+    <p class="lc-note">Gunakan nomor yang telah diterbitkan. Pilih penandatangan dan klasifikasi sesuai isi surat.</p>
+    <div class="lc-grid">
+      <div class="lc-field"><label for="letterCodeNumber">Nomor surat</label><input id="letterCodeNumber" readonly></div>
+      <div class="lc-field"><label for="letterCodeType">Jenis surat</label><input id="letterCodeType" readonly></div>
+      <div class="lc-field"><label for="letterCodeMonth">Bulan surat</label><select id="letterCodeMonth"></select></div>
+      <div class="lc-field"><label for="letterCodeYear">Tahun surat (otomatis)</label><input id="letterCodeYear" readonly></div>
+      <div class="lc-field lc-wide"><label for="letterCodeUrgency">Sifat surat</label><select id="letterCodeUrgency"><option value="">Pilih sifat surat</option><option value="B">B — Biasa</option><option value="Sg">Sg — Segera</option><option value="Pt">Pt — Penting</option><option value="R">R — Rahasia</option><option value="SR">SR — Sangat Rahasia</option></select></div>
+      <div class="lc-field lc-wide"><label for="letterCodeMode">Bentuk penandatanganan</label><select id="letterCodeMode"><option value="direct">Pejabat langsung</option><option value="onBehalf">a.n. Rektor</option></select><p id="letterCodeOnBehalf" class="lc-note" hidden>Atas nama Rektor (R). Pilih pejabat yang menandatangani surat di bawah ini.</p></div>
+      <div class="lc-field lc-wide"><label for="letterCodeOfficer">Pejabat penandatangan</label><select id="letterCodeOfficer"></select></div>
+      <div class="lc-field lc-wide"><label for="letterCodePrimary">Klasifikasi primer</label><select id="letterCodePrimary"></select></div>
+      <div class="lc-field lc-wide"><label for="letterCodeSecondary">Klasifikasi sekunder</label><select id="letterCodeSecondary" disabled></select></div>
+      <div id="letterCodeTertiaryField" class="lc-field lc-wide" hidden><label for="letterCodeTertiary">Klasifikasi tersier</label><select id="letterCodeTertiary" disabled></select></div>
+    </div>
+    <div class="lc-result-field"><label for="letterCodeResult">Kode lengkap surat</label><textarea id="letterCodeResult" class="lc-result" rows="3" readonly placeholder="Lengkapi pilihan di atas untuk melihat kode lengkap." aria-live="polite"></textarea></div>
+    <button id="letterCodeCopy" class="secondary-button" type="button" disabled>Salin Kode Lengkap</button>
+    <p id="letterCodeFeedback" class="lc-feedback" role="status" aria-live="polite"></p>
+  </div>
+</div>
+<script>
+  // LETTER_CODE_MASTER is extracted from the supplied Excel, not the earlier HTML.
+  // The only added code is TL.03, confirmed by the project owner on 29 October 2026.
+  var LETTER_CODE_MASTER = {
+  "source": "Excel generator UINSA 2024 (3); TL.03 dikonfirmasi pengguna pada 29 Oktober 2026",
+  "officers": [
+    {
+      "label": "Rektor",
+      "code": "R"
+    },
+    {
+      "label": "Warek 1",
+      "code": "R1"
+    },
+    {
+      "label": "Warek 2",
+      "code": "R2"
+    },
+    {
+      "label": "Warek 3",
+      "code": "R3"
+    },
+    {
+      "label": "Kabiro AUPK",
+      "code": "BU"
+    },
+    {
+      "label": "Kabiro AAKK",
+      "code": "BA"
+    },
+    {
+      "label": "Koordinator/Sekretaris Kopertais IV",
+      "code": "KPT"
+    },
+    {
+      "label": "Ketua LP2M",
+      "code": "LP"
+    },
+    {
+      "label": "Ketua LPM",
+      "code": "LM"
+    },
+    {
+      "label": "Kepala Perpustakaan",
+      "code": "PTK"
+    },
+    {
+      "label": "Kepala Pusat Pengembangan Bahasa",
+      "code": "PB"
+    },
+    {
+      "label": "Kepala Pusat Ma'had Al-Jami'ah",
+      "code": "MAJ"
+    },
+    {
+      "label": "Kepala PUSBIS",
+      "code": "BNS"
+    },
+    {
+      "label": "Kepala PUSTIPD",
+      "code": "IT"
+    },
+    {
+      "label": "Kepala Pusat Layanan Internasional",
+      "code": "IO"
+    },
+    {
+      "label": "Kepala Percetakan",
+      "code": "PCT"
+    },
+    {
+      "label": "Kepala SPI",
+      "code": "SPI"
+    },
+    {
+      "label": "Kepala Unit Layanan Pengadaan",
+      "code": "ULP"
+    },
+    {
+      "label": "Pejabat Pembuat Komitmen",
+      "code": "PPK"
+    },
+    {
+      "label": "Kepala Klinik",
+      "code": "KLM"
+    },
+    {
+      "label": "Kepala Bagian Umum",
+      "code": "BU1"
+    },
+    {
+      "label": "Kepala Bagian Perencanaan",
+      "code": "BU2"
+    },
+    {
+      "label": "Kepala Bagian Keuangan",
+      "code": "BU3"
+    },
+    {
+      "label": "Kepala Bagian Kepegawaian",
+      "code": "BU4"
+    },
+    {
+      "label": "Kepala Bagian Akademik",
+      "code": "BA1"
+    },
+    {
+      "label": "Kepala Bagian Kemahasiswaan",
+      "code": "BA2"
+    },
+    {
+      "label": "Kepala Bagian Humas",
+      "code": "BA3"
+    }
+  ],
+  "classifications": [
+    {
+      "code": "KU",
+      "label": "Keuangan",
+      "children": [
+        {
+          "code": "00",
+          "label": "Rencana dan Penyusunan Anggaran",
+          "children": [
+            {
+              "code": "1",
+              "label": "Rencana Anggaran"
+            },
+            {
+              "code": "2",
+              "label": "Penyusunan Anggaran"
+            },
+            {
+              "code": "3",
+              "label": "Non Budgeter"
+            }
+          ]
+        },
+        {
+          "code": "01",
+          "label": "Belanja",
+          "children": [
+            {
+              "code": "1",
+              "label": "Surat Permintaan Pembayaran"
+            },
+            {
+              "code": "2",
+              "label": "SPJ"
+            }
+          ]
+        },
+        {
+          "code": "02",
+          "label": "SPJ",
+          "children": [
+            {
+              "code": "1",
+              "label": "SPJ APBN"
+            },
+            {
+              "code": "2",
+              "label": "SPJ Non Budgeter"
+            }
+          ]
+        },
+        {
+          "code": "03",
+          "label": "Pendapatan Negara",
+          "children": [
+            {
+              "code": "1",
+              "label": "Pajak"
+            }
+          ]
+        },
+        {
+          "code": "04",
+          "label": "Perbankan",
+          "children": [
+            {
+              "code": "1",
+              "label": "Valuta Asing/Transfer"
+            },
+            {
+              "code": "2",
+              "label": "Surat-Surat Yang Berkenaan Dengan Saldo Rekening Koran Yang Ada Pada Bank"
+            }
+          ]
+        },
+        {
+          "code": "05",
+          "label": "Sumbangan/Bantuan",
+          "children": []
+        }
+      ]
+    },
+    {
+      "code": "KP",
+      "label": "Kepegawaian",
+      "children": [
+        {
+          "code": "00",
+          "label": "Pengadaan",
+          "children": [
+            {
+              "code": "1",
+              "label": "Formasi"
+            },
+            {
+              "code": "2",
+              "label": "Penerimaan"
+            },
+            {
+              "code": "3",
+              "label": "Pengangkatan"
+            }
+          ]
+        },
+        {
+          "code": "01",
+          "label": "Tata Usaha Kepegawaian",
+          "children": [
+            {
+              "code": "1",
+              "label": "Izin/Dispensasi"
+            },
+            {
+              "code": "2",
+              "label": "Keterangan"
+            }
+          ]
+        },
+        {
+          "code": "02",
+          "label": "Pendidikan dan Pelatihan",
+          "children": [
+            {
+              "code": "1",
+              "label": "Diklat Prajabatan"
+            },
+            {
+              "code": "2",
+              "label": "Diklat Dalam Jabatan"
+            },
+            {
+              "code": "3",
+              "label": "Latihan Kursus"
+            }
+          ]
+        },
+        {
+          "code": "03",
+          "label": "KORPRI",
+          "children": []
+        },
+        {
+          "code": "04",
+          "label": "Penilaian dan Hukuman",
+          "children": [
+            {
+              "code": "1",
+              "label": "Penilaian"
+            },
+            {
+              "code": "2",
+              "label": "Hukuman"
+            }
+          ]
+        },
+        {
+          "code": "05",
+          "label": "Screening",
+          "children": []
+        },
+        {
+          "code": "06",
+          "label": "Pembinaan Mental",
+          "children": []
+        },
+        {
+          "code": "07",
+          "label": "Mutasi",
+          "children": [
+            {
+              "code": "1",
+              "label": "Kepangkatan"
+            },
+            {
+              "code": "2",
+              "label": "Kenaikan Gaji Berkala"
+            },
+            {
+              "code": "3",
+              "label": "Penyesuaian Masa Kerja"
+            },
+            {
+              "code": "4",
+              "label": "Penyesuaian Tunjangan Keluarga"
+            },
+            {
+              "code": "5",
+              "label": "Alih Tugas"
+            },
+            {
+              "code": "6",
+              "label": "Jabatan Struktural/Fungsional"
+            }
+          ]
+        },
+        {
+          "code": "08",
+          "label": "Kesejahteraan",
+          "children": [
+            {
+              "code": "1",
+              "label": "Kesehatan"
+            },
+            {
+              "code": "2",
+              "label": "Cuti"
+            },
+            {
+              "code": "3",
+              "label": "Rekreasi"
+            },
+            {
+              "code": "4",
+              "label": "Bantuan/Santunan"
+            },
+            {
+              "code": "5",
+              "label": "Koperasi"
+            },
+            {
+              "code": "6",
+              "label": "Perumahan"
+            },
+            {
+              "code": "7",
+              "label": "Antar Jemput/Transportasi"
+            },
+            {
+              "code": "8",
+              "label": "Penghargaan"
+            }
+          ]
+        },
+        {
+          "code": "09",
+          "label": "Pemutusan Hubungan Kerja",
+          "children": []
+        }
+      ]
+    },
+    {
+      "code": "OT",
+      "label": "Organisasi dan Tatalaksana",
+      "children": [
+        {
+          "code": "00",
+          "label": "Organisasi",
+          "children": []
+        },
+        {
+          "code": "01",
+          "label": "Tatalaksana",
+          "children": [
+            {
+              "code": "1",
+              "label": "Perencanaan"
+            },
+            {
+              "code": "2",
+              "label": "Laporan"
+            },
+            {
+              "code": "3",
+              "label": "Penyusunan Prosedur Kerja"
+            },
+            {
+              "code": "4",
+              "label": "Pelayanan Masyarakat"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "HK",
+      "label": "Hukum",
+      "children": [
+        {
+          "code": "00",
+          "label": "Peraturan Perundang-Undangan",
+          "children": [
+            {
+              "code": "1",
+              "label": "Undang-Undang termasuk Perpu"
+            },
+            {
+              "code": "2",
+              "label": "Peraturan Pemerintah"
+            },
+            {
+              "code": "3",
+              "label": "Keputusan Presiden, Instruksi Presiden"
+            },
+            {
+              "code": "4",
+              "label": "Peraturan Menteri, Instruksi Menteri"
+            },
+            {
+              "code": "5",
+              "label": "Keputusan Menteri, Instruksi Menteri"
+            },
+            {
+              "code": "6",
+              "label": "SKB, Menteri-Menteri/Pimpinan Unit Eselon I/II"
+            },
+            {
+              "code": "7",
+              "label": "Edaran Menteri/Pimpinan Unit Eselon I/II"
+            },
+            {
+              "code": "8",
+              "label": "Peraturan Kantor Wilayah Kementerian Agama Provinsi dan Kantor Kementerian Agama Kabupaten/Kota"
+            },
+            {
+              "code": "9",
+              "label": "Peraturan PEMDA Tk.I/PEMDA Tk.II"
+            }
+          ]
+        },
+        {
+          "code": "01",
+          "label": "Pidana",
+          "children": [
+            {
+              "code": "1",
+              "label": "Pencurian"
+            },
+            {
+              "code": "2",
+              "label": "Korupsi"
+            }
+          ]
+        },
+        {
+          "code": "02",
+          "label": "Perdata",
+          "children": [
+            {
+              "code": "1",
+              "label": "Perikatan"
+            }
+          ]
+        },
+        {
+          "code": "03",
+          "label": "Hukum Agama",
+          "children": [
+            {
+              "code": "1",
+              "label": "Fatwa"
+            },
+            {
+              "code": "2",
+              "label": "Rukyat/Hisab"
+            },
+            {
+              "code": "3",
+              "label": "Hari Besar Agama"
+            }
+          ]
+        },
+        {
+          "code": "04",
+          "label": "Bantuan Hukum",
+          "children": [
+            {
+              "code": "1",
+              "label": "Kasus Hukum Pidana"
+            },
+            {
+              "code": "2",
+              "label": "Kasus Hukum Perdata"
+            },
+            {
+              "code": "3",
+              "label": "Kasus Hukum Tata Usaha Negara (TUN)"
+            },
+            {
+              "code": "4",
+              "label": "Penelaahan Hukum"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "HM",
+      "label": "Kehumasan",
+      "children": [
+        {
+          "code": "00",
+          "label": "Penerangan",
+          "children": []
+        },
+        {
+          "code": "01",
+          "label": "Hubungan",
+          "children": []
+        },
+        {
+          "code": "02",
+          "label": "Dokumentasi dan Kepustakaan",
+          "children": [
+            {
+              "code": "1",
+              "label": "Dokumentasi"
+            },
+            {
+              "code": "2",
+              "label": "Kepustakaan"
+            }
+          ]
+        },
+        {
+          "code": "03",
+          "label": "Keprotokolan",
+          "children": []
+        }
+      ]
+    },
+    {
+      "code": "KS",
+      "label": "Kesekretariatan",
+      "children": [
+        {
+          "code": "00",
+          "label": "Kerumahtanggaan",
+          "children": []
+        },
+        {
+          "code": "01",
+          "label": "Perlengkapan",
+          "children": [
+            {
+              "code": "1",
+              "label": "Gedung"
+            },
+            {
+              "code": "2",
+              "label": "Alat Kantor"
+            },
+            {
+              "code": "3",
+              "label": "Mesin Kantor/Alat-Alat Elektronik"
+            },
+            {
+              "code": "4",
+              "label": "Perabotan Kantor"
+            },
+            {
+              "code": "5",
+              "label": "Kendaraan"
+            },
+            {
+              "code": "6",
+              "label": "Inventaris Perlengkapan"
+            },
+            {
+              "code": "7",
+              "label": "Penawaran Umum"
+            }
+          ]
+        },
+        {
+          "code": "02",
+          "label": "Ketatausahaan",
+          "children": []
+        }
+      ]
+    },
+    {
+      "code": "TL",
+      "label": "Penelitian",
+      "children": [
+        {
+          "code": "00",
+          "label": "Penelitian Pendidikan",
+          "children": []
+        },
+        {
+          "code": "01",
+          "label": "Penelitian Keagamaan",
+          "children": []
+        },
+        {
+          "code": "02",
+          "label": "Penelitian Lektur Agama",
+          "children": [
+            {
+              "code": "1",
+              "label": "Surat-surat yang berhubungan dengan Penelitian atas Penerbitan, Import dan Penyebaran Kitab-Kitab Suci Agama"
+            },
+            {
+              "code": "2",
+              "label": "Penelitian Buku-Buku Agama"
+            }
+          ]
+        },
+        {
+          "code": "03",
+          "label": "Pengembangan Penelitian",
+          "children": []
+        }
+      ]
+    },
+    {
+      "code": "PS",
+      "label": "Pengawasan",
+      "children": [
+        {
+          "code": "00",
+          "label": "Administrasi Umum",
+          "children": []
+        },
+        {
+          "code": "01",
+          "label": "Tugas Umum",
+          "children": []
+        },
+        {
+          "code": "02",
+          "label": "Proyek Pembangunan",
+          "children": [
+            {
+              "code": "1",
+              "label": "Fisik"
+            },
+            {
+              "code": "2",
+              "label": "Non-Fisik"
+            }
+          ]
+        },
+        {
+          "code": "03",
+          "label": "Pengawasan Eksternal",
+          "children": [
+            {
+              "code": "1",
+              "label": "BPK RI"
+            },
+            {
+              "code": "2",
+              "label": "Badan Pengawasan Keuangan dan Pembangunan (BPKP)"
+            },
+            {
+              "code": "3",
+              "label": "Pengaduan Masyarakat"
+            },
+            {
+              "code": "4",
+              "label": "Pengaduan Masyarakat (Non TP 5000)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "PW",
+      "label": "Perkawinan",
+      "children": [
+        {
+          "code": "00",
+          "label": "Penyuluhan",
+          "children": []
+        },
+        {
+          "code": "01",
+          "label": "Perkawinan",
+          "children": []
+        },
+        {
+          "code": "02",
+          "label": "Campuran",
+          "children": []
+        }
+      ]
+    },
+    {
+      "code": "HJ",
+      "label": "Haji",
+      "children": [
+        {
+          "code": "00",
+          "label": "Calon Haji",
+          "children": []
+        },
+        {
+          "code": "01",
+          "label": "Bimbingan",
+          "children": []
+        },
+        {
+          "code": "02",
+          "label": "Petugas Haji",
+          "children": []
+        },
+        {
+          "code": "03",
+          "label": "Ongkos Naik Haji",
+          "children": []
+        },
+        {
+          "code": "04",
+          "label": "Jemaah Haji",
+          "children": []
+        },
+        {
+          "code": "05",
+          "label": "Angkutan",
+          "children": []
+        },
+        {
+          "code": "06",
+          "label": "Pengasramaan",
+          "children": []
+        },
+        {
+          "code": "07",
+          "label": "Pembekalan",
+          "children": []
+        },
+        {
+          "code": "08",
+          "label": "Dispensasi/Rekomendasi Khusus",
+          "children": []
+        },
+        {
+          "code": "09",
+          "label": "Umroh",
+          "children": []
+        }
+      ]
+    },
+    {
+      "code": "BA",
+      "label": "Pembinaan Agama",
+      "children": [
+        {
+          "code": "00",
+          "label": "Penyuluhan",
+          "children": []
+        },
+        {
+          "code": "01",
+          "label": "Bimbingan",
+          "children": [
+            {
+              "code": "1",
+              "label": "Lembaga Keagamaan"
+            },
+            {
+              "code": "2",
+              "label": "Aliran Kerohanian/Keagamaan"
+            }
+          ]
+        },
+        {
+          "code": "02",
+          "label": "Kerukunan Hidup Beragama",
+          "children": []
+        },
+        {
+          "code": "03",
+          "label": "Ibadah dan Ibadah Sosial",
+          "children": [
+            {
+              "code": "1",
+              "label": "Ibadah"
+            },
+            {
+              "code": "2",
+              "label": "Ibadah Sosial"
+            }
+          ]
+        },
+        {
+          "code": "04",
+          "label": "Pengembangan Keagamaan",
+          "children": []
+        },
+        {
+          "code": "05",
+          "label": "Rohaniawan",
+          "children": []
+        }
+      ]
+    },
+    {
+      "code": "PP",
+      "label": "Pendidikan dan Pengajaran",
+      "children": [
+        {
+          "code": "00",
+          "label": "Kurikulum, Tenaga Edukatif dan Sarana",
+          "children": [
+            {
+              "code": "1",
+              "label": "Sekolah Umum Tingkat Taman Kanak-Kanak dan Sekolah Dasar (TK dan SD)"
+            },
+            {
+              "code": "2",
+              "label": "Sekolah Lanjutan Tingkat Pertama (SLTP)"
+            },
+            {
+              "code": "3",
+              "label": "Sekolah Lanjutan Tingkat Atas (SLTA)"
+            },
+            {
+              "code": "4",
+              "label": "Raudhatul Athfal dan Madrasah Ibtidaiyah"
+            },
+            {
+              "code": "5",
+              "label": "Madrasah Tsanawiyah"
+            },
+            {
+              "code": "6",
+              "label": "Madrasah Aliyah"
+            },
+            {
+              "code": "7",
+              "label": "Pondok Pesantren"
+            },
+            {
+              "code": "8",
+              "label": "Madrasah Diniyah"
+            },
+            {
+              "code": "9",
+              "label": "Perguruan Tinggi Agama"
+            },
+            {
+              "code": "10",
+              "label": "Perguruan Tinggi Umum"
+            },
+            {
+              "code": "11",
+              "label": "Pengembangan Pendidikan"
+            }
+          ]
+        },
+        {
+          "code": "01",
+          "label": "Evaluasi dan Ijazah",
+          "children": [
+            {
+              "code": "1",
+              "label": "Pendidikan Agama"
+            },
+            {
+              "code": "2",
+              "label": "Pendidikan Umum"
+            }
+          ]
+        },
+        {
+          "code": "02",
+          "label": "Kepenilikan, Kepengawasan dan Pembinaan",
+          "children": [
+            {
+              "code": "1",
+              "label": "Kepenilikan"
+            },
+            {
+              "code": "2",
+              "label": "Kepengawasan"
+            },
+            {
+              "code": "3",
+              "label": "Pembinaan"
+            }
+          ]
+        },
+        {
+          "code": "03",
+          "label": "Kelembagaan",
+          "children": [
+            {
+              "code": "1",
+              "label": "Organisasi"
+            },
+            {
+              "code": "2",
+              "label": "Pengembangan"
+            }
+          ]
+        },
+        {
+          "code": "04",
+          "label": "Beasiswa",
+          "children": []
+        },
+        {
+          "code": "05",
+          "label": "Sumbangan",
+          "children": []
+        },
+        {
+          "code": "06",
+          "label": "Pengabdian",
+          "children": []
+        },
+        {
+          "code": "07",
+          "label": "Perizinan",
+          "children": []
+        }
+      ]
+    }
+  ]
+};
+
+  var LetterCodeGenerator = (function() {
+    var context = null;
+    var revision = 0;
+    var ids = ['Number', 'Type', 'Month', 'Year', 'Urgency', 'Mode', 'Officer', 'Primary', 'Secondary', 'Tertiary', 'Result', 'Copy', 'Feedback'];
+    var fields = {};
+    ids.forEach(function(id) { fields[id] = document.getElementById('letterCode' + id); });
+    var offer = document.getElementById('letterCodeOffer');
+    var panel = document.getElementById('letterCodeFields');
+    var openButton = document.getElementById('letterCodeOpen');
+    var tertiaryField = document.getElementById('letterCodeTertiaryField');
+
+    function find(items, code) {
+      for (var i = 0; i < items.length; i++) if (items[i].code === code) return items[i];
+      return null;
+    }
+
+    function populate(select, items, placeholder) {
+      select.textContent = '';
+      var empty = document.createElement('option');
+      empty.value = ''; empty.textContent = placeholder; select.appendChild(empty);
+      items.forEach(function(item) {
+        var option = document.createElement('option');
+        option.value = item.code;
+        option.textContent = item.code + ' — ' + item.label;
+        select.appendChild(option);
+      });
+    }
+
+    function reset() {
+      revision += 1;
+      context = null;
+      offer.hidden = true;
+      panel.hidden = true;
+      openButton.setAttribute('aria-expanded', 'false');
+      openButton.textContent = 'Buat Kode Lengkap Surat';
+      fields.Number.value = ''; fields.Type.value = ''; fields.Year.value = '';
+      fields.Urgency.value = ''; fields.Mode.value = 'direct'; fields.Month.value = '';
+      populate(fields.Officer, LETTER_CODE_MASTER.officers, 'Pilih pejabat penandatangan');
+      populate(fields.Primary, LETTER_CODE_MASTER.classifications, 'Pilih klasifikasi primer');
+      resetSecondary();
+      document.getElementById('letterCodeOnBehalf').hidden = true;
+      update();
+    }
+
+    function configure(result) {
+      reset();
+      if (!result || !result.success || (result.documentType !== 'Surat Dinas' && result.documentType !== 'Nota Dinas')) return;
+      var number = String(result.number || '');
+      var date = String(result.letterDate || '');
+      if (!/^[1-9]\d*$/.test(number) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+      var parsed = new Date(date + 'T00:00:00Z');
+      if (isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) return;
+      context = {number: number, documentType: result.documentType, year: date.slice(0, 4)};
+      fields.Number.value = number;
+      fields.Type.value = context.documentType;
+      fields.Year.value = context.year;
+      fields.Month.value = date.slice(5, 7);
+      offer.hidden = false;
+    }
+
+    function resetTertiary() {
+      populate(fields.Tertiary, [], 'Pilih klasifikasi tersier');
+      fields.Tertiary.disabled = true;
+      tertiaryField.hidden = true;
+    }
+
+    function resetSecondary() {
+      populate(fields.Secondary, [], 'Pilih primer terlebih dahulu');
+      fields.Secondary.disabled = true;
+      resetTertiary();
+    }
+
+    function primaryChanged() {
+      resetSecondary();
+      var primary = find(LETTER_CODE_MASTER.classifications, fields.Primary.value);
+      if (primary) {
+        populate(fields.Secondary, primary.children, 'Pilih klasifikasi sekunder');
+        fields.Secondary.disabled = false;
+      }
+      update();
+    }
+
+    function secondaryChanged() {
+      resetTertiary();
+      var primary = find(LETTER_CODE_MASTER.classifications, fields.Primary.value);
+      var secondary = primary && find(primary.children, fields.Secondary.value);
+      if (secondary && secondary.children.length) {
+        populate(fields.Tertiary, secondary.children, 'Pilih klasifikasi tersier');
+        fields.Tertiary.disabled = false;
+        tertiaryField.hidden = false;
+      }
+      update();
+    }
+
+    function modeChanged() {
+      var selectedOfficer = fields.Officer.value;
+      var onBehalf = fields.Mode.value === 'onBehalf';
+      populate(fields.Officer, LETTER_CODE_MASTER.officers.filter(function(officer) {
+        return !onBehalf || officer.code !== 'R';
+      }), 'Pilih pejabat penandatangan');
+      if (!onBehalf || selectedOfficer !== 'R') fields.Officer.value = selectedOfficer;
+      document.getElementById('letterCodeOnBehalf').hidden = !onBehalf;
+      update();
+    }
+
+    function build() {
+      if (!context || !find([{code:'B'}, {code:'Sg'}, {code:'Pt'}, {code:'R'}, {code:'SR'}], fields.Urgency.value)) return '';
+      if (fields.Mode.value !== 'direct' && fields.Mode.value !== 'onBehalf') return '';
+      var officer = find(LETTER_CODE_MASTER.officers, fields.Officer.value);
+      if (!officer || (fields.Mode.value === 'onBehalf' && officer.code === 'R')) return '';
+      var primary = find(LETTER_CODE_MASTER.classifications, fields.Primary.value);
+      var secondary = primary && find(primary.children, fields.Secondary.value);
+      if (!secondary) return '';
+      var classification = primary.code + '.' + secondary.code;
+      if (secondary.children.length) {
+        var tertiary = find(secondary.children, fields.Tertiary.value);
+        if (!tertiary) return '';
+        classification += '.' + tertiary.code;
+      }
+      if (!/^(0[1-9]|1[0-2])$/.test(fields.Month.value)) return '';
+      var signer = (fields.Mode.value === 'onBehalf' ? 'R/' : '') + officer.code;
+      return fields.Urgency.value + '-' + context.number + '/Un.07/01/' + signer + '/' + classification + '/' + fields.Month.value + '/' + context.year;
+    }
+
+    function update() {
+      fields.Result.value = build();
+      fields.Copy.disabled = !fields.Result.value;
+      fields.Feedback.textContent = '';
+    }
+
+    function copy() {
+      var code = build();
+      if (!code) return;
+      var copyRevision = revision;
+      function stillCurrent() { return copyRevision === revision && code === build(); }
+      function fallback() {
+        if (!stillCurrent()) return;
+        fields.Result.focus(); fields.Result.select();
+        var copied = false;
+        try { copied = document.execCommand('copy'); } catch (error) { /* Manual copy remains available. */ }
+        fields.Feedback.textContent = copied ? 'Kode lengkap berhasil disalin.' : 'Kode telah dipilih. Silakan salin secara manual.';
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          navigator.clipboard.writeText(code).then(function() {
+            if (stillCurrent()) fields.Feedback.textContent = 'Kode lengkap berhasil disalin.';
+          }, fallback);
+        } catch (error) { fallback(); }
+      } else { fallback(); }
+    }
+
+    ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].forEach(function(name, index) {
+      var option = document.createElement('option');
+      option.value = ('0' + (index + 1)).slice(-2);
+      option.textContent = name;
+      fields.Month.appendChild(option);
+    });
+    openButton.addEventListener('click', function() {
+      panel.hidden = !panel.hidden;
+      openButton.setAttribute('aria-expanded', String(!panel.hidden));
+      openButton.textContent = panel.hidden ? 'Buat Kode Lengkap Surat' : 'Tutup Generator Kode';
+      if (!panel.hidden) fields.Urgency.focus();
+    });
+    fields.Primary.addEventListener('change', primaryChanged);
+    fields.Secondary.addEventListener('change', secondaryChanged);
+    fields.Mode.addEventListener('change', modeChanged);
+    ['Urgency', 'Officer', 'Tertiary', 'Month'].forEach(function(id) { fields[id].addEventListener('change', update); });
+    fields.Copy.addEventListener('click', copy);
+    reset();
+    return {configure: configure, reset: reset};
+  })();
+</script>

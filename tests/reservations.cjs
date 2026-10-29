@@ -57,12 +57,17 @@ test('weekends and national holidays excluded; joint leave remains working day',
 test('before activation date produces no retroactive slots',()=>{ctx.ensureDailyReservations_(day('2026-09-18'));assert.equal(sheets.PERMINTAAN.rows.length,1);});
 test('normal request creates daily slots first and takes next number',()=>{
  const result=ctx.reserveRequest(payload);assert.equal(result.number,45);assert.equal(sheets.PERMINTAAN.rows.length,14);
+ assert.equal(result.documentType,'Surat Dinas');assert.equal(result.letterDate,'2026-09-22');
 });
 test('backdate consumes smallest slot; duplicate token keeps same identity',()=>{
  ctx.ensureDailyReservations_(day('2026-09-21'));
  const a=ctx.reserveRequest({...payload,letterDate:'2026-09-21'});
  const b=ctx.reserveRequest({...payload,letterDate:'2026-09-21'});
  assert.equal(a.number,41);assert.equal(b.requestId,a.requestId);
+ assert.equal(a.documentType,'Surat Dinas');assert.equal(a.letterDate,'2026-09-21');
+ assert.equal(b.documentType,a.documentType);assert.equal(b.letterDate,a.letterDate);
+ const changedHints=ctx.reserveRequest({...payload,documentType:'Nota Dinas',letterDate:'2026-08-01'});
+ assert.equal(changedHints.documentType,'Surat Dinas');assert.equal(changedHints.letterDate,'2026-09-21');
  const claimed=sheets.PERMINTAAN.rows.find(r=>r[11]===a.requestId);
  assert.equal(ctx.reservationDateKey_(claimed[0]),'2026-09-21');
  assert.equal(ctx.reservationDateKey_(claimed[20]),'2026-09-22');
@@ -95,7 +100,8 @@ test('old slots survive archive and use old year without resetting current count
  now=new Date('2027-01-04T01:00:00Z');
  ctx.ensureDailyReservations_(new Clock());
  const before=ctx.getSettings_().values.NEXT_SURAT_DINAS;
- ctx.reserveRequest({...payload,letterDate:'2026-09-21'});
+ const oldYearResult=ctx.reserveRequest({...payload,letterDate:'2026-09-21'});
+ assert.equal(oldYearResult.letterDate,'2026-09-21');assert.equal(oldYearResult.documentType,'Surat Dinas');
  assert.equal(ctx.getSettings_().values.COUNTER_YEAR,2027);
  assert.equal(ctx.getSettings_().values.NEXT_SURAT_DINAS,before);
  now=new Date('2026-09-22T01:00:00Z');
@@ -113,3 +119,4 @@ test('legacy marker uses subject regardless of routing placeholders',()=>{
 const html=fs.readFileSync(path.join(root,'Index.html'),'utf8');
 for(const script of html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g))new vm.Script(script[1]);
 console.log(passed+' scenarios passed; client JavaScript parses.');
+
