@@ -31,6 +31,11 @@ Cadangan kedua master dibuat sebelum perubahan. Body, objek berposisi, serta foo
 dibandingkan dengan pembacaan awal dan tetap identik. Logo dan garis mengambang
 dipertahankan karena perbaikan spasi sudah menyelesaikan penyebab pemotongan.
 
-Izin berbagi folder tidak diubah. Pada saat pemeriksaan, folder mengizinkan
-`anyone` dengan peran `writer`; pengelola sebaiknya mempertimbangkan peran viewer
-untuk melindungi master. Aplikasi tidak memberikan izin berbagi tambahan.
+Izin berbagi tidak diubah oleh aplikasi. Setelah dipindahkan oleh pemilik pada
+3 November 2026, folder tetap memakai ID dan tautan yang sama. Pemilik
+mengonfirmasi akses umum telah diubah menjadi Viewer. Pembacaan metadata
+berhasil, tetapi rincian permission tidak tersedia bagi konektor saat pengecekan.
+
+Tawaran template kemudian diperkecil menjadi teks 12 px dan tautan bergaris bawah
+di atas formulir, tanpa kartu berwarna, judul besar, atau tombol. Petunjuk
+File > Buat salinan tetap tersedia. Fitur ini bersifat opsional.
