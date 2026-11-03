@@ -35,9 +35,11 @@ jobs:
       - name: Siapkan project khusus pengujian
         run: |
           mkdir -p .staging
-          cd .staging
-          if [ ! -f .clasp.json ]; then
-            clasp create --type standalone --title "SIDDIQ UJI Pelengkapan Surat Final"
+          if [ ! -f .staging/.clasp.json ]; then
+            staging_create_dir=$(mktemp -d "$RUNNER_TEMP/siddiq-final.XXXXXX")
+            (cd "$staging_create_dir" && clasp create --type standalone --title "SIDDIQ UJI Pelengkapan Surat Final")
+            test -s "$staging_create_dir/.clasp.json"
+            cp "$staging_create_dir/.clasp.json" .staging/.clasp.json
           fi
       - name: Tolak target produksi dan siapkan source staging
         run: node scripts/prepare-final-staging.cjs
@@ -50,6 +52,7 @@ jobs:
           clasp deploy --description "SIDDIQ UJI ${GITHUB_SHA}" | tee deployment.txt
           cat deployment.txt >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: siddiq-final-staging-target
           path: |
