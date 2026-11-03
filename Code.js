@@ -1,8 +1,8 @@
 var APP = {
   TITLE: 'Form Pengajuan Nomor Surat Kantor Pusat UIN Sunan Ampel Surabaya',
-  SPREADSHEET_ID: '1C-u9r4440ZDprkcZMSnjbjki-FoVEF99DmwJmUZpjXs',
-  ROOT_FOLDER_ID: '1KF7Ak9xReV8MvLmtzMd855tihVi0XBlB',
-  WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbz4i88ZxnpnlvDV2bgBH3eebT2m7tAHMRo_vCJOurG1BF6HTzT28dXXss3A97gMp-DH/exec',
+  SPREADSHEET_ID: '',
+  ROOT_FOLDER_ID: '',
+  WEB_APP_URL: '',
   TIMEZONE: 'Asia/Jakarta',
   ADMIN_EMAIL: 'bag.umum@uinsa.ac.id',
   DATA_SHEET: 'PERMINTAAN',
@@ -107,6 +107,7 @@ var REQUEST_STATUS = {
 };
 
 function doGet() {
+  ensureFinalStaging_();
   return HtmlService.createTemplateFromFile('Index').evaluate()
     .setTitle(APP.TITLE)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
@@ -114,6 +115,10 @@ function doGet() {
 
 function includeLetterCodeGenerator_() {
   return HtmlService.createHtmlOutputFromFile('LetterCodes').getContent();
+}
+
+function includeFinalLetters_() {
+  return HtmlService.createHtmlOutputFromFile('FinalLettersUI').getContent();
 }
 
 function onOpen() {
@@ -878,6 +883,7 @@ function getTemporaryUserKey_() {
 }
 
 function getSpreadsheet_() {
+  bindFinalStaging_();
   if (!SPREADSHEET_INSTANCE_) {
     SPREADSHEET_INSTANCE_ = SpreadsheetApp.openById(APP.SPREADSHEET_ID);
   }

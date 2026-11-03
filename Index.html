@@ -1442,6 +1442,8 @@
       <span style="display:block;">Gunakan File → Buat salinan untuk mengisi surat.</span>
     </aside>
 
+    <?!= includeFinalLetters_(); ?>
+
     <main class="form-card">
       <div class="section-heading">
         <div>
@@ -2313,6 +2315,7 @@
       google.script.run
         .withSuccessHandler(function(result) {
           BULK_ACCESS_TOKEN = result.accessToken;
+          FinalLettersUI.unlock(result.accessToken);
           document.getElementById('bulkGate').style.display = 'none';
           document.getElementById('bulkAccessCode').value = '';
           document.getElementById('bulkPanel').style.display = 'block';

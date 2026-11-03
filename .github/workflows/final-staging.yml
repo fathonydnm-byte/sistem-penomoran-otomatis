@@ -1,0 +1,58 @@
+name: Uji terisolasi pelengkapan surat final
+on:
+  push:
+    branches: [feature/pelengkapan-surat-final]
+permissions:
+  contents: read
+concurrency:
+  group: siddiq-final-staging
+  cancel-in-progress: false
+jobs:
+  staging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Jalankan seluruh pengujian lokal
+        run: |
+          node tests/reservations.cjs
+          node tests/admin-edit.cjs
+          node tests/letter-codes.cjs
+          node tests/final-letters.cjs
+          node tests/staging-isolation.cjs
+      - uses: actions/cache@v4
+        with:
+          path: .staging
+          key: siddiq-final-staging-target-v1
+      - name: Instal clasp dan pulihkan kredensial akun pengelola
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+        run: |
+          npm install -g @google/clasp
+          printf '%s' "$CLASP_CREDENTIALS" > "$HOME/.clasprc.json"
+      - name: Siapkan project khusus pengujian
+        run: |
+          mkdir -p .staging
+          cd .staging
+          if [ ! -f .clasp.json ]; then
+            clasp create --type standalone --title "SIDDIQ UJI Pelengkapan Surat Final"
+          fi
+      - name: Tolak target produksi dan siapkan source staging
+        run: node scripts/prepare-final-staging.cjs
+      - name: Push hanya ke Apps Script UJI
+        working-directory: .staging
+        run: clasp push --force
+      - name: Deploy UJI hanya dapat diakses akun deployer
+        working-directory: .staging
+        run: |
+          clasp deploy --description "SIDDIQ UJI ${GITHUB_SHA}" | tee deployment.txt
+          cat deployment.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: siddiq-final-staging-target
+          path: |
+            .staging/.clasp.json
+            .staging/deployment.txt
+          include-hidden-files: true

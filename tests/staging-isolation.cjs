@@ -1,0 +1,13 @@
+const fs=require('node:fs'),assert=require('node:assert/strict'),vm=require('node:vm'),path=require('node:path');
+const root=path.join(__dirname,'..');const read=p=>fs.readFileSync(path.join(root,p),'utf8');
+assert.equal(JSON.parse(read('appsscript.json')).webapp.access,'MYSELF');
+assert.equal(JSON.parse(read('.clasp.json')).scriptId,'');
+const code=read('Code.js');
+for(const id of ['1C-u9r4440ZDprkcZMSnjbjki-FoVEF99DmwJmUZpjXs','1KF7Ak9xReV8MvLmtzMd855tihVi0XBlB'])assert(!code.includes(id),'Production resource ID must be absent');
+const workflow=read('.github/workflows/final-staging.yml');assert(workflow.includes('branches: [feature/pelengkapan-surat-final]'));assert(workflow.includes('working-directory: .staging'));assert(!workflow.includes('--deploymentId'));assert(!workflow.includes('git push'));
+const productionWorkflow=read('.github/workflows/clasp-push.yml');assert(!productionWorkflow.includes('feature/pelengkapan-surat-final'));
+const context=vm.createContext({APP:{},ScriptApp:{getScriptId(){return '1a105dbVLfTVRwogvyvA4TIk5QmZnBLmUVnk1SoUxCBU_KEHmg28tv29_';}}});
+assert.throws(()=>vm.runInContext(read('Staging.js'),context),/STOP/);
+for(const file of ['Code.js','Bulk.js','Admin.js','Reservations.js','FinalLetters.js','Staging.js'])new vm.Script(read(file));
+for(const file of ['Index.html','FinalLettersUI.html','LetterCodes.html'])for(const s of read(file).matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g))new vm.Script(s[1]);
+console.log('PASS staging isolation, production deny guard, private manifest, and all client/server scripts parse.');
