@@ -1437,9 +1437,13 @@
       </div>
     </section>
 
-    <aside class="official-template-offer" aria-label="Template surat resmi (opsional)" style="margin:8px 0 12px;padding:0 4px;color:#65736b;font-size:12px;line-height:1.5;">
-      Butuh template surat? <a href="https://drive.google.com/drive/folders/1f_Uq5h3SJoT5X5GyfLyon_-qef-933_n?usp=sharing" target="_blank" rel="noopener noreferrer" style="color:#526b5c;text-decoration:underline;">Buka template resmi UINSA<span style="position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;"> (tab baru)</span></a>.
-      <span style="display:block;">Gunakan File → Buat salinan untuk mengisi surat.</span>
+    <aside class="letter-help" aria-label="Bantuan surat (opsional)">
+      <div class="letter-help-links">
+        <a href="https://drive.google.com/drive/folders/1f_Uq5h3SJoT5X5GyfLyon_-qef-933_n?usp=sharing" target="_blank" rel="noopener noreferrer">Template resmi UINSA<span class="visually-hidden"> (tab baru)</span></a>
+        <span class="letter-help-separator" aria-hidden="true">·</span>
+        <button id="letterCodeFrontOpen" type="button" aria-haspopup="dialog" aria-controls="letterCodeDialog">Rekomendasi kode surat</button>
+      </div>
+      <p>Opsional · Template: gunakan File → Buat salinan.</p>
     </aside>
 
     <?!= includeFinalLetters_(); ?>

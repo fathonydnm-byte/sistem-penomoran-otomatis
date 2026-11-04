@@ -1,4 +1,13 @@
 <style>
+  .letter-help { margin: 8px 0 12px; padding: 0 4px; color: #65736b; font-size: 12px; line-height: 1.5; }
+  .letter-help-links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+  .letter-help a, .letter-help button { color: #526b5c; font: inherit; text-decoration: underline; text-underline-offset: 2px; }
+  .letter-help button { border: 0; background: none; padding: 4px 0; cursor: pointer; min-height: 32px; }
+  .letter-help p { margin: 0; font-size: 11px; }
+  .letter-help-separator { color: #a3afa7; }
+  @media (max-width: 420px) { .letter-help-links { gap: 0 14px; } .letter-help-separator { display: none; } }
+  .letter-help :focus-visible { outline: 2px solid #14774c; outline-offset: 3px; }
+  .letter-help .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
   #letterCodeOffer[hidden], #letterCodeFields[hidden], #letterCodeTertiaryField[hidden], #letterCodeOnBehalf[hidden] { display: none !important; }
   .letter-code-offer { margin-top: 22px; padding: 18px; border: 1px solid #cbded1; border-radius: 12px; background: #f5faf6; text-align: left; }
   .letter-code-offer .lc-heading { margin: 0 0 10px; color: #174e35; font-size: 16px; font-weight: 700; }
@@ -15,16 +24,24 @@
   .letter-code-offer button { white-space: normal; }
   .letter-code-offer button:disabled { opacity: .55; cursor: not-allowed; }
   .letter-code-offer .lc-feedback { min-height: 20px; margin: 8px 0 0; color: #315c42; font-size: 13px; }
+  #letterCodeDialog { box-sizing: border-box; width: min(650px, calc(100% - 24px)); max-height: 88dvh; margin: auto; overflow-y: auto; background: #fff; }
+  #letterCodeDialog::backdrop { background: rgba(17,40,28,.45); }
+  .lc-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .lc-dialog-head h2 { margin: 0; font-size: 18px; color: #174e35; }
+  .lc-dialog-close { border: 1px solid #cbded1; border-radius: 7px; background: #fff; color: #526159; padding: 8px 12px; font: inherit; cursor: pointer; }
   @media (max-width: 560px) { .letter-code-offer { padding: 14px; } .letter-code-offer .lc-grid { grid-template-columns: minmax(0, 1fr); } }
 </style>
 <div id="letterCodeOffer" class="letter-code-offer" hidden>
   <p class="lc-heading">Butuh rekomendasi kode lengkap untuk surat?</p>
-  <button id="letterCodeOpen" class="secondary-button" type="button" aria-expanded="false" aria-controls="letterCodeFields">Buat Kode Lengkap Surat</button>
+  <button id="letterCodeOpen" class="secondary-button" type="button" aria-haspopup="dialog" aria-controls="letterCodeDialog">Buat Kode Lengkap Surat</button>
+</div>
+<dialog id="letterCodeDialog" class="letter-code-offer" aria-labelledby="letterCodeTitle">
+  <div class="lc-dialog-head"><h2 id="letterCodeTitle">Rekomendasi kode surat</h2><button id="letterCodeClose" class="lc-dialog-close" type="button">Tutup</button></div>
   <div id="letterCodeFields" hidden>
-    <p class="lc-note">Gunakan nomor yang telah diterbitkan. Pilih penandatangan dan klasifikasi sesuai isi surat.</p>
+    <p id="letterCodeContextNote" class="lc-note">Gunakan nomor yang telah diterbitkan. Pilih penandatangan dan klasifikasi sesuai isi surat.</p>
     <div class="lc-grid">
-      <div class="lc-field"><label for="letterCodeNumber">Nomor surat</label><input id="letterCodeNumber" readonly></div>
-      <div class="lc-field"><label for="letterCodeType">Jenis surat</label><input id="letterCodeType" readonly></div>
+      <div class="lc-field"><label for="letterCodeNumber">Nomor surat</label><input id="letterCodeNumber" inputmode="numeric" maxlength="12" placeholder="Nomor yang sudah diperoleh" readonly></div>
+      <div class="lc-field"><label for="letterCodeType">Jenis surat</label><select id="letterCodeType" disabled><option value="Surat Dinas">Surat Dinas</option><option value="Nota Dinas">Nota Dinas</option></select></div>
       <div class="lc-field"><label for="letterCodeMonth">Bulan surat</label><select id="letterCodeMonth"></select></div>
       <div class="lc-field"><label for="letterCodeYear">Tahun surat (otomatis)</label><input id="letterCodeYear" readonly></div>
       <div class="lc-field lc-wide"><label for="letterCodeUrgency">Sifat surat</label><select id="letterCodeUrgency"><option value="">Pilih sifat surat</option><option value="B">B — Biasa</option><option value="Sg">Sg — Segera</option><option value="Pt">Pt — Penting</option><option value="R">R — Rahasia</option><option value="SR">SR — Sangat Rahasia</option></select></div>
@@ -38,7 +55,7 @@
     <button id="letterCodeCopy" class="secondary-button" type="button" disabled>Salin Kode Lengkap</button>
     <p id="letterCodeFeedback" class="lc-feedback" role="status" aria-live="polite"></p>
   </div>
-</div>
+</dialog>
 <script>
   // LETTER_CODE_MASTER is extracted from the supplied Excel, not the earlier HTML.
   // The only added code is TL.03, confirmed by the project owner on 29 October 2026.
@@ -969,6 +986,7 @@
 
   var LetterCodeGenerator = (function() {
     var context = null;
+    var issuedResult = null;
     var revision = 0;
     var ids = ['Number', 'Type', 'Month', 'Year', 'Urgency', 'Mode', 'Officer', 'Primary', 'Secondary', 'Tertiary', 'Result', 'Copy', 'Feedback'];
     var fields = {};
@@ -976,7 +994,12 @@
     var offer = document.getElementById('letterCodeOffer');
     var panel = document.getElementById('letterCodeFields');
     var openButton = document.getElementById('letterCodeOpen');
+    var frontButton = document.getElementById('letterCodeFrontOpen');
+    var dialog = document.getElementById('letterCodeDialog');
+    var contextNote = document.getElementById('letterCodeContextNote');
     var tertiaryField = document.getElementById('letterCodeTertiaryField');
+    // The shared dialog must remain accessible when the success panel is hidden.
+    document.body.appendChild(dialog);
 
     function find(items, code) {
       for (var i = 0; i < items.length; i++) if (items[i].code === code) return items[i];
@@ -995,13 +1018,12 @@
       });
     }
 
-    function reset() {
+    function resetFields() {
       revision += 1;
       context = null;
-      offer.hidden = true;
       panel.hidden = true;
-      openButton.setAttribute('aria-expanded', 'false');
-      openButton.textContent = 'Buat Kode Lengkap Surat';
+      if (dialog.open) dialog.close();
+      fields.Number.readOnly = true; fields.Type.disabled = true;
       fields.Number.value = ''; fields.Type.value = ''; fields.Year.value = '';
       fields.Urgency.value = ''; fields.Mode.value = 'direct'; fields.Month.value = '';
       populate(fields.Officer, LETTER_CODE_MASTER.officers, 'Pilih pejabat penandatangan');
@@ -1009,6 +1031,12 @@
       resetSecondary();
       document.getElementById('letterCodeOnBehalf').hidden = true;
       update();
+    }
+
+    function reset() {
+      issuedResult = null;
+      offer.hidden = true;
+      resetFields();
     }
 
     function configure(result) {
@@ -1020,11 +1048,38 @@
       var parsed = new Date(date + 'T00:00:00Z');
       if (isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) return;
       context = {number: number, documentType: result.documentType, year: date.slice(0, 4)};
+      issuedResult = {success:true,number:number,documentType:result.documentType,letterDate:date};
       fields.Number.value = number;
       fields.Type.value = context.documentType;
       fields.Year.value = context.year;
       fields.Month.value = date.slice(5, 7);
       offer.hidden = false;
+    }
+
+    function showDialog() {
+      panel.hidden = false;
+      dialog.showModal();
+      (context.manual ? fields.Number : fields.Urgency).focus();
+    }
+
+    function openStandalone() {
+      resetFields();
+      var today = new Intl.DateTimeFormat('en-GB', {timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit'}).formatToParts(new Date());
+      var year = today.filter(function(p){return p.type === 'year';})[0].value;
+      var month = today.filter(function(p){return p.type === 'month';})[0].value;
+      context = {manual:true,year:year};
+      fields.Number.readOnly = false; fields.Type.disabled = false;
+      fields.Type.value = 'Surat Dinas'; fields.Year.value = year; fields.Month.value = month;
+      contextNote.textContent = 'Isi nomor yang sudah diperoleh. Fitur ini membantu menyusun kode untuk Surat Dinas dan Nota Dinas; tahun terisi otomatis.';
+      showDialog();
+    }
+
+    function openIssued() {
+      if (!issuedResult) return;
+      var issued = issuedResult;
+      if (!context || context.manual) configure(issued);
+      contextNote.textContent = 'Nomor dan tahun mengikuti permintaan yang berhasil. Pilih penandatangan dan klasifikasi sesuai isi surat.';
+      showDialog();
     }
 
     function resetTertiary() {
@@ -1074,6 +1129,9 @@
 
     function build() {
       if (!context || !find([{code:'B'}, {code:'Sg'}, {code:'Pt'}, {code:'R'}, {code:'SR'}], fields.Urgency.value)) return '';
+      var number = context.manual ? fields.Number.value.trim() : context.number;
+      if (!/^[1-9]\d{0,11}$/.test(number)) return '';
+      if (context.manual && fields.Type.value !== 'Surat Dinas' && fields.Type.value !== 'Nota Dinas') return '';
       if (fields.Mode.value !== 'direct' && fields.Mode.value !== 'onBehalf') return '';
       var officer = find(LETTER_CODE_MASTER.officers, fields.Officer.value);
       if (!officer || (fields.Mode.value === 'onBehalf' && officer.code === 'R')) return '';
@@ -1088,7 +1146,7 @@
       }
       if (!/^(0[1-9]|1[0-2])$/.test(fields.Month.value)) return '';
       var signer = (fields.Mode.value === 'onBehalf' ? 'R/' : '') + officer.code;
-      return fields.Urgency.value + '-' + context.number + '/Un.07/01/' + signer + '/' + classification + '/' + fields.Month.value + '/' + context.year;
+      return fields.Urgency.value + '-' + number + '/Un.07/01/' + signer + '/' + classification + '/' + fields.Month.value + '/' + context.year;
     }
 
     function update() {
@@ -1124,16 +1182,16 @@
       option.textContent = name;
       fields.Month.appendChild(option);
     });
-    openButton.addEventListener('click', function() {
-      panel.hidden = !panel.hidden;
-      openButton.setAttribute('aria-expanded', String(!panel.hidden));
-      openButton.textContent = panel.hidden ? 'Buat Kode Lengkap Surat' : 'Tutup Generator Kode';
-      if (!panel.hidden) fields.Urgency.focus();
-    });
+    openButton.addEventListener('click', openIssued);
+    frontButton.addEventListener('click', openStandalone);
+    document.getElementById('letterCodeClose').addEventListener('click', function(){dialog.close();});
+    dialog.addEventListener('close', function(){revision += 1;});
     fields.Primary.addEventListener('change', primaryChanged);
     fields.Secondary.addEventListener('change', secondaryChanged);
     fields.Mode.addEventListener('change', modeChanged);
     ['Urgency', 'Officer', 'Tertiary', 'Month'].forEach(function(id) { fields[id].addEventListener('change', update); });
+    fields.Number.addEventListener('input', update);
+    fields.Type.addEventListener('change', update);
     fields.Copy.addEventListener('click', copy);
     reset();
     return {configure: configure, reset: reset};
