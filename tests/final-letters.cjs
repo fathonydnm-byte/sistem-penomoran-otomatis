@@ -116,6 +116,8 @@ test('public upload success updates its row without extra list or hidden admin r
  element('finalApplicant').value='Pemohon A';element('finalApplicant').onchange();calls.shift().ok({names:['Pemohon A'],items:[{requestId:'one',number:1,documentType:'Surat Dinas',letterDate:'2026-07-31',requestedAt:'2026-09-22',complete:false}],total:1});
  const publicTable=element('finalPublicList').children[0],row=publicTable.children[1].children[0],form=row.children[4].children[0];form.elements.finalPdf.files=[{name:'final.pdf',size:100}];
  ui.FinalLettersUI.unlock('admin-test');form.onsubmit({preventDefault(){}});assert.equal(calls.length,1);assert.equal(calls[0].name,'resumableUpload');
+ calls[0].progress({receivedBytes:50,totalBytes:100,percent:50,phase:'Mengirim paket',elapsedSeconds:2});
+ const display=form.children.find(c=>c.className==='final-upload-progress');assert.equal(display.children[0].textContent,'50% diterima');assert.equal(display.children[1].value,50);assert.equal(display.children[1].max,100);assert.match(display.children[2].textContent,/2 detik/);
  element('finalApplicant').value='Pemohon lain';element('finalApplicant').onchange();assert.equal(element('finalApplicant').value,'Pemohon A');
  element('finalPublicToggle').onclick();assert.equal(element('finalPublicPanel').hidden,false);assert.equal(calls.length,1);
  calls.shift().ok({success:true,complete:true});

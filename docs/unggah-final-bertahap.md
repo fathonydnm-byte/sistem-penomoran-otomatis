@@ -1,7 +1,7 @@
 # Unggah final bertahap — 4 November 2026
 
-Status: implementasi dan pengujian otomatis selesai; uji Google Drive langsung
-menunggu akses akun pengelola pada project staging sebelum deployment produksi.
+Status: implementasi, pengujian otomatis dan uji Google Drive langsung selesai;
+pemilik mengizinkan deployment produksi pada 4 November 2026.
 PR: https://github.com/fathonydnm-byte/sistem-penomoran-otomatis/pull/9
 
 ## Perilaku
@@ -53,9 +53,12 @@ sedangkan project Cloud standar harus sudah mengaktifkan Drive API.
 - 5 skenario browser-client: progres hanya setelah ack, finalisasi terpisah,
   retry, lanjutkan dengan token sama, ganti file, dan file tidak valid.
 - Regresi 26 final surat, 21 generator, 12 reservasi, editor dan rilis produksi.
-- Simulasi bukan uji beban Google langsung. Staging menyediakan tombol uji 10
-  PDF buatan masing-masing 1,5 MiB, beserta pengukuran puncak eksekusi server.
-  Hasil langsung belum dinyatakan lulus sampai tombol tersebut berhasil diuji.
+- Uji Google Drive langsung pada staging versi 5: 10/10 PDF buatan masing-masing
+  1,5 MiB berhasil dikirim dalam dua paket dan diverifikasi/di-commit. Meter
+  server mencatat puncak 10 eksekusi bersamaan, aktif 0 setelah selesai, dan
+  total durasi 73 detik untuk seluruh kelompok. Ini pengujian 10 unggahan
+  paralel dari satu browser, bukan jaminan kecepatan untuk semua koneksi atau
+  pengukuran 10 file masing-masing 20 MiB. Batas 20 MiB diuji otomatis.
 
 Google membatasi eksekusi bersamaan per pengguna (30), waktu satu eksekusi
 (6 menit), UrlFetch dan penyimpanan Properties. Web app execute-as-deployer
