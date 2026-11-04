@@ -89,7 +89,7 @@ var FinalLettersUI=(function(){
     FinalUploadClient.upload({file:file,requestId:record.requestId,adminToken:admin?token:'',
       onProgress:function(p){bar.value=p.receivedBytes;percent.textContent=p.percent+'% diterima';detail.textContent=p.phase+' ('+p.elapsedSeconds+' detik)';},
       onSuccess:function(){busy=false;updatePublic(record.requestId,true);message(admin,'Final berhasil tersimpan.');if(admin&&token&&!el('finalAdminPanel').hidden)adminLoad();},
-      onFailure:function(e,restart){busy=false;button.disabled=false;button.textContent=restart?'Unggah ulang PDF':'Lanjutkan unggah';message(admin,e);}
+      onFailure:function(e,restart){busy=false;button.disabled=false;button.textContent=restart?'Unggah ulang PDF':'Lanjutkan unggah';message(admin,e+(restart?'':' Klik Lanjutkan unggah di halaman ini; paket yang sudah diterima tidak perlu dikirim ulang. Jangan muat ulang halaman.'));}
     });
   }
   function paging(r,admin){var prefix=admin?'finalAdmin':'final';var page=admin?adminPage:publicPage;el(prefix+'Prev').disabled=page===0;el(prefix+'Next').disabled=(page+1)*50>=r.total;el(prefix+'Page').textContent=' Halaman '+(page+1)+' dari '+Math.max(1,Math.ceil(r.total/50))+' ';}

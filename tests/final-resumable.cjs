@@ -110,4 +110,20 @@ test('server rejects forged sessions, oversized packets and declared files over 
  assert.throws(()=>ctx.sendFinalUploadChunk({uploadToken:'bad',offset:0,data:'AAAA'}),/Sesi/);
  assert.throws(()=>ctx.sendFinalUploadChunk({uploadToken:'a'.repeat(32),offset:0,data:'A'.repeat(2*1024*1024)}),/Paket/);
 });
+test('exactly 20 MiB transfers in twenty bounded packets and commits once',()=>{
+ const b=file('maximum',20*1024*1024),m=meta('one',b);assert.equal(sendAll(m,b).complete,true);assert.equal(sheets.SURAT_FINAL.rows[1][3],b.length);assert.equal(sheets.SURAT_FINAL.rows[1][9],1);
+});
+test('request and ledger sorting during transfer preserves ID binding',()=>{
+ sheets.SURAT_FINAL.appendRow(['two','','','','','','','','',0,'']);const b=file('sort',1000),m=meta('one',b);ctx.startFinalUpload(m);ctx.sendFinalUploadChunk(packet(m,b));
+ [sheets.PERMINTAAN.rows[1],sheets.PERMINTAAN.rows[2]]=[sheets.PERMINTAAN.rows[2],sheets.PERMINTAAN.rows[1]];[sheets.SURAT_FINAL.rows[1],sheets.SURAT_FINAL.rows[2]]=[sheets.SURAT_FINAL.rows[2],sheets.SURAT_FINAL.rows[1]];
+ assert.equal(ctx.finishFinalUpload({uploadToken:m.uploadToken}).complete,true);assert.equal(sheets.SURAT_FINAL.rows.find(r=>r[0]==='one')[1],'drive-1');assert.equal(sheets.SURAT_FINAL.rows.find(r=>r[0]==='two')[1],'');
+});
+test('an expired claim superseded by a newer upload cannot overwrite that claim',()=>{
+ const b=file('superseded',1000),m=meta('one',b);ctx.startFinalUpload(m);ctx.sendFinalUploadChunk(packet(m,b));sheets.SURAT_FINAL.rows[1][7]='new-claim';
+ assert.equal(ctx.finishFinalUpload({uploadToken:m.uploadToken}).restart,true);assert.equal(sheets.SURAT_FINAL.rows[1][7],'new-claim');assert.equal(sheets.SURAT_FINAL.rows[1][1],'');assert.equal(drive['drive-1'].trashed,true);
+});
+test('incomplete uploads cannot complete early; expired idle sessions clean up safely',()=>{
+ const b=file('expired',1000),m=meta('one',b);ctx.startFinalUpload(m);assert.equal(ctx.finishFinalUpload({uploadToken:m.uploadToken}).retryable,true);
+ const key=ctx.FINAL_RESUME_PREFIX+m.uploadToken,job=JSON.parse(props[key]);job.expires=1;job.leaseUntil=0;props[key]=JSON.stringify(job);ctx.finalResumeSweep_();assert.equal(props[key],undefined);assert.equal(sheets.SURAT_FINAL.rows[1][7],'');assert.equal(sheets.SURAT_FINAL.rows[1][1],'');
+});
 console.log(passed+' resumable server scenarios passed.');
