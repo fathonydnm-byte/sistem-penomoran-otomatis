@@ -106,7 +106,7 @@ function finalUIHarness(){
  const elements={},calls=[];const element=id=>elements[id]||(elements[id]=new Element('div'));
  element('finalPublicPanel').hidden=true;element('finalAdminPanel').hidden=true;
  const run=new Proxy({withSuccessHandler(ok){this.ok=ok;return this;},withFailureHandler(fail){this.fail=fail;return this;}},{get(target,key){return key in target?target[key]:(payload)=>calls.push({name:key,payload,ok:target.ok,fail:target.fail});}});
- const ui=vm.createContext({document:{getElementById:element,createElement:tag=>new Element(tag)},google:{script:{run}},window:{addEventListener(){},confirm:()=>true},console});
+ const ui=vm.createContext({document:{getElementById:element,createElement:tag=>new Element(tag)},google:{script:{run}},FinalUploadClient:{upload(o){calls.push({name:'resumableUpload',ok:o.onSuccess,fail:o.onFailure,progress:o.onProgress});}},window:{addEventListener(){},confirm:()=>true},console});
  const script=fs.readFileSync(path.join(__dirname,'../FinalLettersUI.html'),'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];vm.runInContext(script,ui);
  return {element,calls,ui};
 }
@@ -115,7 +115,9 @@ test('public upload success updates its row without extra list or hidden admin r
  element('finalPublicToggle').onclick();assert.equal(calls[0].name,'publicFinalLetters');calls.shift().ok({names:['Pemohon A'],items:[],total:0});
  element('finalApplicant').value='Pemohon A';element('finalApplicant').onchange();calls.shift().ok({names:['Pemohon A'],items:[{requestId:'one',number:1,documentType:'Surat Dinas',letterDate:'2026-07-31',requestedAt:'2026-09-22',complete:false}],total:1});
  const publicTable=element('finalPublicList').children[0],row=publicTable.children[1].children[0],form=row.children[4].children[0];form.elements.finalPdf.files=[{name:'final.pdf',size:100}];
- ui.FinalLettersUI.unlock('admin-test');form.onsubmit({preventDefault(){}});assert.equal(calls.length,1);assert.equal(calls[0].name,'uploadFinalLetter');
+ ui.FinalLettersUI.unlock('admin-test');form.onsubmit({preventDefault(){}});assert.equal(calls.length,1);assert.equal(calls[0].name,'resumableUpload');
+ calls[0].progress({receivedBytes:50,totalBytes:100,percent:50,phase:'Mengirim paket',elapsedSeconds:2});
+ const display=form.children.find(c=>c.className==='final-upload-progress');assert.equal(display.children[0].textContent,'50% diterima');assert.equal(display.children[1].value,50);assert.equal(display.children[1].max,100);assert.match(display.children[2].textContent,/2 detik/);
  element('finalApplicant').value='Pemohon lain';element('finalApplicant').onchange();assert.equal(element('finalApplicant').value,'Pemohon A');
  element('finalPublicToggle').onclick();assert.equal(element('finalPublicPanel').hidden,false);assert.equal(calls.length,1);
  calls.shift().ok({success:true,complete:true});
@@ -128,7 +130,7 @@ test('an in-flight public response cannot undo a newer successful admin upload',
  calls.shift().ok({names:['Pemohon A'],units:['Bagian Umum'],items:[{...record}],summary:[{applicantName:'Pemohon A',total:1,complete:0,incomplete:1}],total:1});
  element('finalApplicant').value='Pemohon A';element('finalPublicToggle').onclick();const stale=calls.shift();assert.equal(stale.name,'publicFinalLetters');
  const row=element('finalAdminList').children[0].children[1].children[0],form=row.children[5].children[0];form.elements.finalPdf.files=[{name:'final.pdf',size:100}];
- form.onsubmit({preventDefault(){}});assert.equal(calls[0].name,'uploadFinalLetter');calls.shift().ok({success:true,complete:true});assert.equal(calls[0].name,'adminFinalLetters');
+ form.onsubmit({preventDefault(){}});assert.equal(calls[0].name,'resumableUpload');calls.shift().ok({success:true,complete:true});assert.equal(calls[0].name,'adminFinalLetters');
  stale.ok({names:['Pemohon A'],items:[{...record}],total:1});const updated=element('finalPublicList').children[0].children[1].children[0];assert.equal(updated.children[3].textContent,'Sudah dilengkapi');assert.equal(updated.children[4].children.length,0);
  // A subsequent list refresh still trusts the newer server result, e.g. an admin correction elsewhere.
  element('finalPublicToggle').onclick();element('finalPublicToggle').onclick();const fresh=calls.pop();assert.equal(fresh.name,'publicFinalLetters');fresh.ok({names:['Pemohon A'],items:[{...record}],total:1});const corrected=element('finalPublicList').children[0].children[1].children[0];assert.equal(corrected.children[3].textContent,'Perlu dilengkapi final surat');

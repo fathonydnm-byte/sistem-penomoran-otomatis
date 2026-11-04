@@ -119,7 +119,7 @@ function includeLetterCodeGenerator_() {
 
 function includeFinalLetters_() {
   if (!finalStorageReady_()) return '<p style="font-size:12px;color:#65736b">Pelengkapan final sedang dipersiapkan. Form permintaan nomor tetap dapat digunakan.</p><script>var FinalLettersUI={unlock:function(){}};</script>';
-  return HtmlService.createHtmlOutputFromFile('FinalLettersUI').getContent();
+  return HtmlService.createHtmlOutputFromFile('FinalUploadClient').getContent()+HtmlService.createHtmlOutputFromFile('FinalLettersUI').getContent();
 }
 
 function onOpen() {

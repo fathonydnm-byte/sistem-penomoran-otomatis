@@ -98,6 +98,11 @@ function finalLock_(fn) {
 }
 function claimFinal_(id, pdf, admin) {
   return finalLock_(function() {
+    return claimFinalUnlocked_(id,pdf,admin);
+  });
+}
+// Caller must hold ScriptLock. Shared by legacy and resumable uploads.
+function claimFinalUnlocked_(id,pdf,admin) {
     var request = finalRequestEntry_(id),sheet=finalSheet_(),rows=finalRows_(sheet),record=finalRecord_(id,rows),now=new Date();
     var v=record ? record.values : [id,'','','','','','','','',0,''];
     if (v[7] && new Date(v[8]).getTime()>now.getTime()) throw new Error('Surat sedang diunggah. Tunggu sebelum mencoba lagi.');
@@ -114,7 +119,6 @@ function claimFinal_(id, pdf, admin) {
     var row=record ? record.row : rows.length+2;
     sheet.getRange(row,1,1,FINAL_HEADERS.length).setValues([v]);SpreadsheetApp.flush();
     return {claim:claim,request:request.values,requestRow:request.row,ledgerRow:row,oldFileId:v[1],previousHash:previousHash,version:Number(v[9]||0)};
-  });
 }
 function finalRoot_() {
   var id=String(finalStorageConfig_().rootId || '');

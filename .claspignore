@@ -4,3 +4,6 @@ tests/**
 docs/**
 **/*.md
 **/*.cjs
+scripts/**
+.chunk-staging/**
+

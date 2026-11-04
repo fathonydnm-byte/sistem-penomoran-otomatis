@@ -1,5 +1,11 @@
 # Handover Sistem Penomoran Surat Otomatis
 
+> Pembaruan unggah 4 November 2026: paket 1 MiB, progres byte terkonfirmasi,
+> retry dan Lanjutkan unggah. Uji Drive staging 10/10 file paralel lulus,
+> puncak 10 eksekusi server, seluruh kelompok 73 detik (file 1,5 MiB).
+> Rincian protokol, kuota, batas resume dan rollback:
+> [docs/unggah-final-bertahap.md](docs/unggah-final-bertahap.md).
+
 > Rilis 4 November 2026: pelengkapan surat final, monitoring admin, optimasi unggah,
 > serta rekomendasi kode kecil di halaman depan. Ledger dan PDF final privat,
 > terpisah dari spreadsheet utama. Panduan rilis/rollback:
