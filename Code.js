@@ -107,6 +107,7 @@ var REQUEST_STATUS = {
 };
 
 function doGet() {
+  try { ensureFinalProduction_(); } catch(error) { console.error('Penyiapan final belum selesai: '+error.message); }
   return HtmlService.createTemplateFromFile('Index').evaluate()
     .setTitle(APP.TITLE)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
@@ -114,6 +115,11 @@ function doGet() {
 
 function includeLetterCodeGenerator_() {
   return HtmlService.createHtmlOutputFromFile('LetterCodes').getContent();
+}
+
+function includeFinalLetters_() {
+  if (!finalStorageReady_()) return '<p style="font-size:12px;color:#65736b">Pelengkapan final sedang dipersiapkan. Form permintaan nomor tetap dapat digunakan.</p><script>var FinalLettersUI={unlock:function(){}};</script>';
+  return HtmlService.createHtmlOutputFromFile('FinalLettersUI').getContent();
 }
 
 function onOpen() {

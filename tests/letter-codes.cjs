@@ -14,9 +14,12 @@ class Element {
   setAttribute(name, value) { this.attributes[name] = value; }
   focus() { this.focused = true; }
   select() { this.selected = true; }
+  showModal() { this.open = true; }
+  close() { this.open = false; if (this.events.close) this.events.close(); }
 }
 const elements = {};
 const document = {
+  body: new Element('body'),
   getElementById(id) { return elements[id] || (elements[id] = new Element()); },
   createElement(tag) { return new Element(tag); },
   execCommand() { return false; }
@@ -55,6 +58,25 @@ async function test(name, fn) { generator.reset(); await fn(); console.log('PASS
   });
   await test('months are ordered January through December', () => {
     assert.equal(field('Month').children.length,12);assert.equal(field('Month').children[0].value,'01');assert.equal(field('Month').children[11].value,'12');
+  });
+  await test('front-page generator opens without an issued request and uses the current Jakarta year', () => {
+    field('FrontOpen').events.click();
+    assert.equal(field('Dialog').open,true);assert.equal(field('Fields').hidden,false);
+    assert.equal(field('Number').readOnly,false);assert.equal(field('Type').disabled,false);
+    const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit'}).formatToParts(new Date());
+    assert.equal(field('Year').value,parts.find(p=>p.type==='year').value);
+    field('Number').value='2048';field('Number').events.input();change('Urgency','B');change('Officer','BU');select('TL','03');
+    assert.equal(code(),'B-2048/Un.07/01/BU/TL.03/'+field('Month').value+'/'+field('Year').value);
+    for(const value of ['', '0','12/34','-2','1.5']){field('Number').value=value;field('Number').events.input();assert.equal(code(),'');}
+  });
+  await test('standalone generator excludes SK and does not reuse or overwrite issued metadata', () => {
+    configure({number:771,letterDate:'2024-07-31'});field('FrontOpen').events.click();
+    field('Number').value='999';field('Number').events.input();change('Urgency','B');change('Officer','BU');select('KU','05');
+    change('Type','SK/SE');assert.equal(code(),'');change('Type','Nota Dinas');assert(code().startsWith('B-999/'));
+    field('Close').events.click();assert.equal(field('Dialog').open,false);
+    field('Open').events.click();assert.equal(field('Number').value,'771');assert.equal(field('Year').value,'2024');
+    assert.equal(field('Number').readOnly,true);assert.equal(field('Type').disabled,true);
+    change('Urgency','B');change('Officer','BU');select('KU','05');assert.equal(code(),'B-771/Un.07/01/BU/KU.05/07/2024');
   });
   await test('direct signer and three-level classification produce the Excel code', () => {
     ready();select('PP','00','9');assert.equal(code(),'B-469/Un.07/01/BU/PP.00.9/04/2026');assert.equal(field('Copy').disabled,false);
