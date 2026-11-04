@@ -1,5 +1,9 @@
 # Handover Sistem Penomoran Surat Otomatis
 
+> BRANCH UJI PELENGKAPAN FINAL: source pada branch ini memakai project, spreadsheet,
+> folder dan manifest privat khusus UJI. Jangan merge atau deploy ke produksi.
+> Panduan dan keputusan fitur: [docs/pelengkapan-final-uat.md](docs/pelengkapan-final-uat.md).
+
 > Pembaruan 29 Oktober 2026: modul generator kode lengkap opsional ditambahkan
 > pada hasil pengajuan individual Surat Dinas dan Nota Dinas. Rincian perilaku,
 > sumber master Excel, konfirmasi `TL.03`, integrasi, pengujian, serta deployment
