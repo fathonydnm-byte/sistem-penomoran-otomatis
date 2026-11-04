@@ -105,6 +105,36 @@ untuk mencegah formula spreadsheet dari input nama. Maksimal 2.000 pemohon dan
 
 ## Pengujian otomatis
 
+### Penyempurnaan 4 November 2026
+
+- Bantuan kecil di halaman depan menyandingkan Template resmi UINSA dan
+  Rekomendasi kode surat. Satu dialog dipakai bersama agar master kode tidak
+  dimuat dua kali dan formulir utama tetap ringkas. Dari halaman depan, isi
+  nomor yang sudah diperoleh, pilih SD/ND dan bulan; tahun otomatis WIB.
+  Dari hasil permintaan, nomor/tahun tetap terikat ke hasil dan tidak dapat
+  diubah. SK/SE tetap tidak memperoleh tawaran kode setelah permintaan.
+- Setelah unggah publik berhasil, indikator diperbarui dari respons server
+  tanpa memuat ulang daftar publik maupun monitoring admin yang tersembunyi.
+  Monitoring tetap mengambil data terkini saat tab dibuka atau filter diterapkan.
+- Commit unggah memeriksa ulang baris permintaan dan klaim yang bersangkutan.
+  Jika baris berpindah, pencarian kembali memakai ID. Pemeriksaan pembatalan,
+  klaim bersamaan dan akses privat tetap berlaku. Penamaan file dilakukan
+  pada blob sehingga tidak membutuhkan operasi rename Drive tambahan.
+- Pembacaan konfigurasi project UJI dilakukan ketika koneksi spreadsheet
+  dibuka, bukan diulang untuk setiap pengambilan sheet dalam eksekusi yang sama.
+- Uji deterministik 1.002 permintaan dan 1.000 baris ledger: sel yang dibaca
+  turun dari 64.105 menjadi 32.084 (sekitar 50%), getLastRow dari 10 menjadi 3,
+  dan lookup sheet dari 9 menjadi 6. Ini ukuran pekerjaan, bukan klaim durasi
+  unggah nyata; transfer file dan latensi Google masih perlu diukur.
+
+Uji tambahan: buka rekomendasi dari halaman depan, isi nomor yang sudah ada,
+susun kode dan tutup dialog. Setelah permintaan SD/ND berhasil, buka generator
+di hasilnya dan pastikan nomor otomatis tetap benar. Ulangi pada layar HP dan
+desktop; dialog tertutup tidak boleh menambah tinggi area bantuan.
+Untuk membandingkan kecepatan unggah, gunakan ukuran PDF dan koneksi yang sama
+serta nomor uji yang belum lengkap. Catat waktu sejak klik unggah sampai status
+berubah hijau; uji setidaknya tiga kali karena latensi Google dapat berubah.
+
 ```bash
 node tests/reservations.cjs
 node tests/admin-edit.cjs

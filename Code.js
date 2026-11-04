@@ -883,8 +883,8 @@ function getTemporaryUserKey_() {
 }
 
 function getSpreadsheet_() {
-  bindFinalStaging_();
   if (!SPREADSHEET_INSTANCE_) {
+    bindFinalStaging_();
     SPREADSHEET_INSTANCE_ = SpreadsheetApp.openById(APP.SPREADSHEET_ID);
   }
   return SPREADSHEET_INSTANCE_;

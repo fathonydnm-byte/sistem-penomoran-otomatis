@@ -8,6 +8,15 @@ const workflow=read('.github/workflows/final-staging.yml');assert(workflow.inclu
 const productionWorkflow=read('.github/workflows/clasp-push.yml');assert(!productionWorkflow.includes('feature/pelengkapan-surat-final'));
 const context=vm.createContext({APP:{},ScriptApp:{getScriptId(){return '1a105dbVLfTVRwogvyvA4TIk5QmZnBLmUVnk1SoUxCBU_KEHmg28tv29_';}}});
 assert.throws(()=>vm.runInContext(read('Staging.js'),context),/STOP/);
+// Reusing a spreadsheet in one execution must not re-read staging properties for each sheet lookup.
+let binds=0,opens=0;
+const cachedBook={},spreadsheetContext=vm.createContext({APP:{SPREADSHEET_ID:''},SPREADSHEET_INSTANCE_:null,
+  bindFinalStaging_(){binds++;spreadsheetContext.APP.SPREADSHEET_ID='staging-only';},
+  SpreadsheetApp:{openById(id){assert.equal(id,'staging-only');opens++;return cachedBook;}}});
+vm.runInContext(code.match(/function getSpreadsheet_\(\) \{[\s\S]*?\n\}/)[0],spreadsheetContext);
+assert.equal(spreadsheetContext.getSpreadsheet_(),cachedBook);assert.equal(spreadsheetContext.getSpreadsheet_(),cachedBook);
+assert.equal(binds,1);assert.equal(opens,1);
+spreadsheetContext.SPREADSHEET_INSTANCE_=null;spreadsheetContext.getSpreadsheet_();assert.equal(binds,2);assert.equal(opens,2);
 for(const file of ['Code.js','Bulk.js','Admin.js','Reservations.js','FinalLetters.js','Staging.js'])new vm.Script(read(file));
 for(const file of ['Index.html','FinalLettersUI.html','LetterCodes.html'])for(const s of read(file).matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g))new vm.Script(s[1]);
 console.log('PASS staging isolation, production deny guard, private manifest, and all client/server scripts parse.');
