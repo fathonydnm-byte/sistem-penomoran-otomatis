@@ -1,0 +1,26 @@
+function chunkTestGuard_(){if(ScriptApp.getScriptId()!=='1voCWP8UrNRyXNgCZPUaFkgmbZEKOzOZ1TodxLLuMb_kWT9BtxB5HiFlz')throw new Error('STOP: test only');}
+function bindChunkStaging_(){
+  chunkTestGuard_();var p=PropertiesService.getScriptProperties();
+  APP.SPREADSHEET_ID=p.getProperty('FINAL_STAGING_SHEET');APP.ROOT_FOLDER_ID=p.getProperty('FINAL_STAGING_ROOT');APP.WEB_APP_URL=ScriptApp.getService().getUrl();
+  if(!APP.SPREADSHEET_ID||!p.getProperty('FINAL_STAGING_FINAL_ROOT'))throw new Error('Original staging fixture missing');
+  p.setProperty('FINAL_PROD_ROOT_ID',p.getProperty('FINAL_STAGING_FINAL_ROOT'));p.setProperty('FINAL_PROD_LEDGER_ID',APP.SPREADSHEET_ID);p.setProperty('FINAL_PROD_READY','1');
+}
+function chunkLoadTestSeed(){
+  chunkTestGuard_();bindChunkStaging_();
+  return finalLock_(function(){
+    var p=PropertiesService.getScriptProperties();p.setProperty('CHUNK_TEST_ACTIVE','0');p.setProperty('CHUNK_TEST_PEAK','0');
+    var now=new Date(),run=Utilities.getUuid(),sheet=getRequiredSheet_(APP.DATA_SHEET),ids=[];
+    var rows=Array.from({length:10},function(_,i){var id='chunk-'+run+'-'+i;ids.push(id);var r=Array(REQUEST_HEADERS.length).fill('');r[0]=now;r[1]=700000+i;r[2]='Surat Dinas';r[3]='DATA BUATAN UJI PAKET '+run+' '+i;r[6]='Uji Paralel '+run;r[7]='Bagian Umum';r[10]='AKTIF';r[11]=id;r[12]=Number(Utilities.formatDate(now,APP.TIMEZONE,'yyyy'));r[18]=Utilities.formatDate(now,APP.TIMEZONE,'yyyy-MM-dd');r[19]='MASSAL';r[20]=now;return r;});
+    sheet.getRange(sheet.getLastRow()+1,1,rows.length,REQUEST_HEADERS.length).setValues(rows);SpreadsheetApp.flush();return {ids:ids};
+  });
+}
+function chunkTestMeter_(fn){
+  chunkTestGuard_();var p=PropertiesService.getScriptProperties();
+  finalLock_(function(){var active=Number(p.getProperty('CHUNK_TEST_ACTIVE')||0)+1;p.setProperty('CHUNK_TEST_ACTIVE',String(active));p.setProperty('CHUNK_TEST_PEAK',String(Math.max(active,Number(p.getProperty('CHUNK_TEST_PEAK')||0))));});
+  try{return fn();}finally{finalLock_(function(){p.setProperty('CHUNK_TEST_ACTIVE',String(Math.max(0,Number(p.getProperty('CHUNK_TEST_ACTIVE')||0)-1)));});}
+}
+function startFinalUpload(p){return chunkTestMeter_(function(){return chunkTestStart_(p);});}
+function sendFinalUploadChunk(p){return chunkTestMeter_(function(){return chunkTestSend_(p);});}
+function finishFinalUpload(p){return chunkTestMeter_(function(){return chunkTestFinish_(p);});}
+function cancelFinalUpload(p){return chunkTestMeter_(function(){return chunkTestCancel_(p);});}
+function chunkLoadTestStats(){chunkTestGuard_();var p=PropertiesService.getScriptProperties();return {peak:Number(p.getProperty('CHUNK_TEST_PEAK')),active:Number(p.getProperty('CHUNK_TEST_ACTIVE'))};}

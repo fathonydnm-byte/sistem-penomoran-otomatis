@@ -14,6 +14,9 @@
   .final-incomplete {color:#b42318;font-weight:700;}
   .final-complete {color:#17673d;font-weight:700;}
   .final-module .final-message {white-space:pre-wrap;font-size:13px;min-height:18px;}
+  .final-upload-progress {margin:8px 0;max-width:420px;font-size:12px;color:#526159;}
+  .final-upload-progress progress {display:block;width:100%;height:12px;accent-color:#17673d;margin:5px 0;}
+  .final-upload-progress strong {color:#174e35;}
   #finalPublicPanel[hidden],#finalAdminPanel[hidden],#finalAdminTabs[hidden] {display:none!important;}
   @media(max-width:560px){.final-module .final-grid{grid-template-columns:minmax(0,1fr)}.final-module{padding:12px}.final-module th,.final-module td{padding:8px 5px}}
 </style>
@@ -79,7 +82,15 @@ var FinalLettersUI=(function(){
   function upload(form,record,admin){if(busy)return;var file=form.elements.finalPdf.files[0];if(!file||!file.size||file.size>20*1024*1024||!/\.pdf$/i.test(file.name)){message(admin,'Pilih satu PDF berukuran maksimal 20 MB.');return;}
     if(admin&&record.complete&&!window.confirm('Ganti file final nomor '+record.number+'? File aktif sebelumnya akan digantikan.'))return;
     busy=true;var button=form.querySelector('button');button.disabled=true;message(admin,'Mengunggah PDF final... Mohon tunggu dan jangan tutup halaman.');
-    rpc('uploadFinalLetter',form,function(){busy=false;updatePublic(record.requestId,true);message(admin,'Final berhasil tersimpan.');if(admin&&token&&!el('finalAdminPanel').hidden)adminLoad();},function(e){busy=false;button.disabled=false;message(admin,e);});
+    var display=form.querySelector('.final-upload-progress');
+    if(!display){display=document.createElement('div');display.className='final-upload-progress';form.appendChild(display);}
+    display.textContent='';var percent=document.createElement('strong'),bar=document.createElement('progress'),detail=document.createElement('span');
+    bar.max=file.size;bar.value=0;bar.setAttribute('aria-label','Progres unggah PDF final nomor '+record.number);display.appendChild(percent);display.appendChild(bar);display.appendChild(detail);
+    FinalUploadClient.upload({file:file,requestId:record.requestId,adminToken:admin?token:'',
+      onProgress:function(p){bar.value=p.receivedBytes;percent.textContent=p.percent+'% diterima';detail.textContent=p.phase+' ('+p.elapsedSeconds+' detik)';},
+      onSuccess:function(){busy=false;updatePublic(record.requestId,true);message(admin,'Final berhasil tersimpan.');if(admin&&token&&!el('finalAdminPanel').hidden)adminLoad();},
+      onFailure:function(e,restart){busy=false;button.disabled=false;button.textContent=restart?'Unggah ulang PDF':'Lanjutkan unggah';message(admin,e);}
+    });
   }
   function paging(r,admin){var prefix=admin?'finalAdmin':'final';var page=admin?adminPage:publicPage;el(prefix+'Prev').disabled=page===0;el(prefix+'Next').disabled=(page+1)*50>=r.total;el(prefix+'Page').textContent=' Halaman '+(page+1)+' dari '+Math.max(1,Math.ceil(r.total/50))+' ';}
   function exportFile(format){if(busy)return;busy=true;message(true,'Menyiapkan laporan...');var p=filters();p.format=format;rpc('exportFinalReport',p,function(r){busy=false;if(!token)return;var bytes=Uint8Array.from(atob(r.base64),function(c){return c.charCodeAt(0);}),url=URL.createObjectURL(new Blob([bytes],{type:r.mimeType})),a=document.createElement('a');a.href=url;a.download=r.name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);message(true,'Laporan siap diunduh.');},function(e){busy=false;message(true,e);});}

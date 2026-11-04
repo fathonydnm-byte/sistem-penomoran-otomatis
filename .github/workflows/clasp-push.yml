@@ -31,6 +31,8 @@ jobs:
           node tests/admin-edit.cjs
           node tests/letter-codes.cjs
           node tests/final-letters.cjs
+          node tests/final-resumable.cjs
+          node tests/final-upload-client.cjs
           node tests/production-release.cjs
 
       - name: Pulihkan kredensial clasp

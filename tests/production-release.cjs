@@ -4,8 +4,8 @@ assert.equal(JSON.parse(read('.clasp.json')).scriptId,'1a105dbVLfTVRwogvyvA4TIk5
 assert.equal(JSON.parse(read('appsscript.json')).webapp.access,'ANYONE_ANONYMOUS');
 assert(!fs.existsSync(path.join(root,'Staging.js')));
 for(const file of ['Code.js','FinalLetters.js','FinalStorage.js','FinalLettersUI.html'])assert(!/bindFinalStaging_|ensureFinalStaging_|stagingDummyPdf|staging-banner|finalDummyA|DATA BUATAN|UJI-SIDDIQ/.test(read(file)),file);
-for(const file of ['Code.js','Bulk.js','Admin.js','Reservations.js','Archive.js','FinalLetters.js','FinalStorage.js'])new vm.Script(read(file));
-for(const file of ['Index.html','FinalLettersUI.html','LetterCodes.html'])for(const s of read(file).matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g))new vm.Script(s[1]);
+for(const file of ['Code.js','Bulk.js','Admin.js','Reservations.js','Archive.js','FinalLetters.js','FinalStorage.js','FinalUpload.js'])new vm.Script(read(file));
+for(const file of ['Index.html','FinalLettersUI.html','FinalUploadClient.html','LetterCodes.html'])for(const s of read(file).matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g))new vm.Script(s[1]);
 const props={},files={},sheets={};let locked=false,copyCount=0,createCount=0,failSetup=false;
 function sheet(){let rows=[];return{getLastRow:()=>rows.length,getRange(){return{getValues:()=>rows,setValues(v){rows=v;}}},setFrozenRows(){}};}
 const book={getSheetByName:n=>sheets[n],insertSheet(n){return sheets[n]=sheet();},setSpreadsheetTimeZone(){}};

@@ -1,0 +1,37 @@
+name: Uji paket upload terisolasi
+on:
+  push:
+    branches: [feature/final-upload-chunks-20261104]
+permissions:
+  contents: read
+concurrency:
+  group: siddiq-upload-staging
+  cancel-in-progress: false
+jobs:
+  staging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: |
+          node tests/reservations.cjs
+          node tests/admin-edit.cjs
+          node tests/letter-codes.cjs
+          node tests/final-letters.cjs
+          node tests/final-resumable.cjs
+          node tests/final-upload-client.cjs
+          node tests/production-release.cjs
+      - run: node scripts/prepare-upload-staging.cjs
+      - name: Siapkan clasp
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+        run: |
+          npm install -g @google/clasp
+          printf '%s' "$CLASP_CREDENTIALS" > "$HOME/.clasprc.json"
+      - name: Push dan deploy khusus project UJI
+        working-directory: .chunk-staging
+        run: |
+          clasp push --force
+          clasp deploy --description "UJI paket upload ${GITHUB_SHA}"

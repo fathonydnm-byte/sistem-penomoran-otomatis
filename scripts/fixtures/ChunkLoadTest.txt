@@ -1,0 +1,24 @@
+<section class="final-module" aria-label="Uji beban khusus staging">
+<h2>UJI DATA BUATAN — 10 unggahan paralel</h2><p>Hanya project uji. Setiap file 1,5 MiB, dikirim dalam dua paket.</p>
+<button id="chunkLoadTest" type="button">Jalankan 10 unggahan paralel</button><p id="chunkLoadSummary" role="status">Belum dijalankan.</p><ol id="chunkLoadRows"></ol>
+</section>
+<script>
+(function(){
+ function rpc(name,payload){return new Promise(function(resolve,reject){google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[name](payload);});}
+ function fixture(index){
+   var text='SIDDIQ DATA BUATAN '+Date.now()+' '+index,stream='BT /F1 12 Tf 50 780 Td ('+text+') Tj ET';
+   var objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>','<< /Length '+stream.length+' >>\nstream\n'+stream+'\nendstream'];
+   var pdf='%PDF-1.4\n',offsets=[];objects.forEach(function(o,i){offsets.push(pdf.length);pdf+=(i+1)+' 0 obj\n'+o+'\nendobj\n';});var xref=pdf.length;pdf+='xref\n0 6\n0000000000 65535 f \n';offsets.forEach(function(n){pdf+=('0000000000'+n).slice(-10)+' 00000 n \n';});pdf+='trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n'+xref+'\n';
+   var bytes=new Uint8Array(1536*1024);bytes.fill(32);for(var i=0;i<pdf.length;i++)bytes[i]=pdf.charCodeAt(i);bytes[pdf.length]=37;var eof='\n%%EOF\n';for(var j=0;j<eof.length;j++)bytes[bytes.length-eof.length+j]=eof.charCodeAt(j);
+   return new File([bytes],'uji-paralel-'+index+'.pdf',{type:'application/pdf'});
+ }
+ document.getElementById('chunkLoadTest').onclick=async function(){
+   var button=this,summary=document.getElementById('chunkLoadSummary'),list=document.getElementById('chunkLoadRows');button.disabled=true;list.textContent='';summary.textContent='Mempersiapkan 10 permintaan buatan...';
+   try{
+     var seed=await rpc('chunkLoadTestSeed',{}),started=Date.now(),done=0;
+     var results=await Promise.all(seed.ids.map(function(id,i){var row=document.createElement('li');list.appendChild(row);return new Promise(function(resolve){FinalUploadClient.upload({file:fixture(i),requestId:id,onProgress:function(p){row.textContent='Unggah '+(i+1)+': '+p.percent+'% — '+p.phase;},onSuccess:function(){done++;row.textContent='Unggah '+(i+1)+': BERHASIL';summary.textContent=done+'/10 selesai';resolve(true);},onFailure:function(message){row.textContent='Unggah '+(i+1)+': GAGAL — '+message;resolve(false);}});});}));
+     var stats=await rpc('chunkLoadTestStats',{});summary.textContent=results.filter(Boolean).length+'/10 BERHASIL; puncak eksekusi bersamaan '+stats.peak+'; aktif '+stats.active+'; durasi '+Math.round((Date.now()-started)/1000)+' detik.';
+   }catch(e){summary.textContent='GAGAL: '+e.message;}finally{button.disabled=false;}
+ };
+})();
+</script>

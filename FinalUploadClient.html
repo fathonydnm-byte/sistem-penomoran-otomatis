@@ -1,0 +1,59 @@
+<script>
+var FinalUploadClient=(function(){
+  var sessions=Object.create(null);
+  function rpc(name,payload){return new Promise(function(resolve,reject){google.script.run.withSuccessHandler(resolve).withFailureHandler(function(e){reject(new Error(e&&e.message?e.message:'Koneksi ke server terputus.'));})[name](payload);});}
+  function delay(ms){return new Promise(function(resolve){setTimeout(resolve,ms);});}
+  function token(){var bytes=new Uint8Array(16);crypto.getRandomValues(bytes);return Array.from(bytes).map(function(b){return ('0'+b.toString(16)).slice(-2);}).join('');}
+  function base64(bytes){var parts=[];for(var i=0;i<bytes.length;i+=32768)parts.push(String.fromCharCode.apply(null,bytes.subarray(i,i+32768)));return btoa(parts.join(''));}
+  function upload(options){
+    var file=options.file,key=options.requestId+(options.adminToken?':admin':':public'),state=sessions[key],started=Date.now(),phase='Menyiapkan dan memeriksa file...',attempt=0;
+    var received=state?state.received:0,ended=false;
+    function progress(){if(!ended&&options.onProgress)options.onProgress({receivedBytes:received,totalBytes:file.size,percent:Math.floor(received/file.size*100),phase:phase,elapsedSeconds:Math.floor((Date.now()-started)/1000),attempt:attempt});}
+    var timer=setInterval(progress,1000);progress();
+    function accept(r){
+      if(!r||r.success!==true){var e=new Error(r&&r.message?r.message:'Konfirmasi paket belum diterima.');e.restart=!!(r&&r.restart);throw e;}
+      if(!Number.isSafeInteger(r.receivedBytes)||r.receivedBytes<0||r.receivedBytes>file.size)throw new Error('Posisi unggah dari server tidak valid.');
+      received=r.receivedBytes;if(state)state.received=received;progress();return r;
+    }
+    async function retry(name,payload){
+      var error;
+      for(var i=0;i<4;i++){
+        attempt=i+1;
+        try{
+          var offlineUntil=Date.now()+60000;
+          while(typeof navigator!=='undefined'&&navigator.onLine===false){phase='Koneksi terputus. Menunggu jaringan kembali...';progress();if(Date.now()>offlineUntil)throw new Error('Koneksi belum pulih. Klik Lanjutkan unggah setelah tersambung.');await delay(1000);}
+          if(i){phase='Mencoba kembali paket yang belum terkonfirmasi ('+(i+1)+'/4)...';progress();}
+          var response=await rpc(name,payload);
+          if(name==='cancelFinalUpload'){if(!response||!response.success)throw new Error(response&&response.message||'Sesi sebelumnya belum dapat ditutup.');return response;}
+          return accept(response);
+        }catch(e){error=e;if(e.restart)throw e;if(i<3)await delay(Math.min(8000,1000*Math.pow(2,i))+Math.floor(Math.random()*250));}
+      }
+      throw error;
+    }
+    (async function(){
+      if(!file||!file.size||file.size>20*1024*1024||!/\.pdf$/i.test(file.name))throw new Error('Pilih satu PDF berukuran maksimal 20 MB.');
+      if(typeof crypto==='undefined'||!crypto.subtle)throw new Error('Browser belum mendukung unggah aman. Gunakan Chrome, Edge, Firefox atau Safari terbaru.');
+      var head=new Uint8Array(await file.slice(0,1024).arrayBuffer());
+      if(String.fromCharCode.apply(null,head).indexOf('%PDF-')===-1)throw new Error('File harus berupa PDF yang valid.');
+      var digest=await crypto.subtle.digest('SHA-256',await file.arrayBuffer());
+      var hash=Array.from(new Uint8Array(digest)).map(function(b){return ('0'+b.toString(16)).slice(-2);}).join('');
+      if(state&&state.hash!==hash){phase='Menutup sesi file sebelumnya...';progress();await retry('cancelFinalUpload',{uploadToken:state.token});delete sessions[key];state=null;received=0;}
+      if(!state){state=sessions[key]={token:token(),hash:hash,received:0};received=0;}
+      phase=received?'Melanjutkan unggah dari paket terakhir...':'Menyiapkan penyimpanan privat...';progress();
+      var result=await retry('startFinalUpload',{uploadToken:state.token,requestId:options.requestId,name:file.name,size:file.size,hash:hash,header:base64(head),adminToken:options.adminToken||''});
+      while(!result.complete&&received<file.size){
+        var chunkSize=result.chunkBytes;
+        if(!Number.isSafeInteger(chunkSize)||chunkSize<256*1024||chunkSize>1024*1024)throw new Error('Ukuran paket server tidak valid.');
+        phase='Mengirim paket '+(Math.floor(received/chunkSize)+1)+' dari '+Math.ceil(file.size/chunkSize)+'...';progress();
+        var bytes=new Uint8Array(await file.slice(received,Math.min(file.size,received+chunkSize)).arrayBuffer());
+        result=await retry('sendFinalUploadChunk',{uploadToken:state.token,offset:received,data:base64(bytes)});
+      }
+      if(!result.complete){phase='100% diterima — memeriksa PDF dan mencatat surat final...';progress();result=await retry('finishFinalUpload',{uploadToken:state.token,adminToken:options.adminToken||''});}
+      if(!result.complete)throw new Error('Penyimpanan belum selesai. Klik Lanjutkan unggah.');
+      received=file.size;phase='Final berhasil tersimpan.';progress();delete sessions[key];
+      return result;
+    })().then(function(result){ended=true;clearInterval(timer);options.onSuccess(result);},function(error){ended=true;clearInterval(timer);if(error.restart)delete sessions[key];options.onFailure(error.message,error.restart);});
+  }
+  return {upload:upload};
+})();
+</script>
