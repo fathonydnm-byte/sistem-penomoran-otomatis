@@ -25,6 +25,14 @@ jobs:
       - name: Install clasp
         run: npm install -g @google/clasp
 
+      - name: Uji regresi sebelum mengirim kode produksi
+        run: |
+          node tests/reservations.cjs
+          node tests/admin-edit.cjs
+          node tests/letter-codes.cjs
+          node tests/final-letters.cjs
+          node tests/production-release.cjs
+
       - name: Pulihkan kredensial clasp
         run: echo "$CLASP_CREDENTIALS" > "$HOME/.clasprc.json"
         env:
@@ -39,3 +47,4 @@ jobs:
           clasp deploy
           --deploymentId "AKfycbz4i88ZxnpnlvDV2bgBH3eebT2m7tAHMRo_vCJOurG1BF6HTzT28dXXss3A97gMp-DH"
           --description "GitHub ${GITHUB_SHA}"
+

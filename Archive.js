@@ -187,6 +187,8 @@ function runArchive_(reason, actorEmail) {
 }
 
 function yearFromRequestRow_(row) {
+  // Keep the source rows for final history and monitoring reachable across year rollover.
+  if (typeof finalEligible_ === 'function' && finalEligible_(row)) return NaN;
   // Slots and unfinished uploads must remain reachable after year rollover.
   if ([REQUEST_STATUS.RESERVED, REQUEST_STATUS.WAITING_UPLOAD,
        REQUEST_STATUS.UPLOADING, REQUEST_STATUS.UPLOAD_FAILED].indexOf(row[10]) !== -1 ||
@@ -279,3 +281,4 @@ function isRowBlank_(row) {
   }
   return true;
 }
+

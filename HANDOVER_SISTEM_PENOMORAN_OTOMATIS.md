@@ -1,5 +1,10 @@
 # Handover Sistem Penomoran Surat Otomatis
 
+> Rilis 4 November 2026: pelengkapan surat final, monitoring admin, optimasi unggah,
+> serta rekomendasi kode kecil di halaman depan. Ledger dan PDF final privat,
+> terpisah dari spreadsheet utama. Panduan rilis/rollback:
+> [docs/rilis-final-surat-20261104.md](docs/rilis-final-surat-20261104.md).
+
 > Pembaruan 29 Oktober 2026: modul generator kode lengkap opsional ditambahkan
 > pada hasil pengajuan individual Surat Dinas dan Nota Dinas. Rincian perilaku,
 > sumber master Excel, konfirmasi `TL.03`, integrasi, pengujian, serta deployment

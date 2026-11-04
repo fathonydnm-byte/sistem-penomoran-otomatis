@@ -1,0 +1,98 @@
+<style>
+  .final-module {margin:12px 0;padding:16px;background:#fff;border:1px solid #d7e2da;border-radius:10px;}
+  .final-module h2 {font-size:18px;margin:0 0 10px;color:#174e35;}
+  .final-module p {font-size:13px;color:#526159;}
+  .final-module label {display:block;font-size:13px;font-weight:600;margin:8px 0 4px;}
+  .final-module select,.final-module input {max-width:100%;width:100%;padding:9px;min-height:42px;border:1px solid #b7c9bd;border-radius:6px;background:white;font:inherit;font-size:14px;}
+  .final-module button {padding:9px 12px;min-height:40px;border:1px solid #96b2a0;border-radius:6px;background:#f5faf6;color:#174e35;cursor:pointer;margin:5px 5px 5px 0;}
+  .final-module button:disabled {opacity:.5;cursor:wait;}
+  .final-module a {color:#175c3c;text-decoration:underline;}
+  .final-module .final-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+  .final-module .final-scroll {overflow:auto;}
+  .final-module table {width:100%;border-collapse:collapse;font-size:13px;margin:10px 0;}
+  .final-module th,.final-module td {padding:10px 8px;border-bottom:1px solid #dde6df;text-align:left;vertical-align:top;}
+  .final-incomplete {color:#b42318;font-weight:700;}
+  .final-complete {color:#17673d;font-weight:700;}
+  .final-module .final-message {white-space:pre-wrap;font-size:13px;min-height:18px;}
+  #finalPublicPanel[hidden],#finalAdminPanel[hidden],#finalAdminTabs[hidden] {display:none!important;}
+  @media(max-width:560px){.final-module .final-grid{grid-template-columns:minmax(0,1fr)}.final-module{padding:12px}.final-module th,.final-module td{padding:8px 5px}}
+</style>
+<div class="final-module">
+  <button type="button" id="finalPublicToggle" aria-expanded="false" aria-controls="finalPublicPanel">Lengkapi Surat Final</button>
+  <section id="finalPublicPanel" hidden>
+    <h2>Pelengkapan Surat Final</h2>
+    <p>Pilih nama pemohon dan nomor surat. Unggah satu PDF final bertanda tangan beserta lampirannya, maksimal 20 MB. Penggantian file hanya melalui admin.</p>
+    <label for="finalApplicant">Nama pemohon</label><select id="finalApplicant"><option value="">Pilih nama pemohon</option></select>
+    <p id="finalPublicMessage" class="final-message" role="status" aria-live="polite"></p>
+    <div id="finalPublicList" class="final-scroll"></div>
+    <button type="button" id="finalPrev">Sebelumnya</button><span id="finalPage"></span><button type="button" id="finalNext">Berikutnya</button>
+  </section>
+</div>
+<nav id="finalAdminTabs" class="final-module" aria-label="Menu admin" hidden>
+  <button type="button" id="finalBulkTab">Permintaan Surat Massal</button>
+  <button type="button" id="finalMonitorTab">Monitoring Surat Final</button>
+  <button type="button" id="finalAdminLogout">Keluar Admin</button>
+</nav>
+<section id="finalAdminPanel" class="final-module" hidden>
+  <h2>Monitoring Surat Final</h2><p>Rekap berdasarkan waktu pengajuan aktual. File final hanya dapat dibuka akun admin yang memiliki izin Google Drive.</p>
+  <div class="final-grid">
+    <div><label for="finalFilterName">Pemohon</label><select id="finalFilterName"><option value="">Semua pemohon</option></select></div>
+    <div><label for="finalFilterUnit">Unit kerja</label><select id="finalFilterUnit"><option value="">Semua unit</option></select></div>
+    <div><label for="finalFilterType">Jenis surat</label><select id="finalFilterType"><option value="">Semua jenis</option><option>Surat Dinas</option><option>Nota Dinas</option><option>SK/SE</option></select></div>
+    <div><label for="finalFilterStatus">Kelengkapan</label><select id="finalFilterStatus"><option value="">Semua status</option><option value="incomplete">Belum dilengkapi</option><option value="complete">Sudah dilengkapi</option></select></div>
+    <div><label for="finalFilterStart">Pengajuan mulai</label><input id="finalFilterStart" type="date"></div>
+    <div><label for="finalFilterEnd">Pengajuan sampai</label><input id="finalFilterEnd" type="date"></div>
+    <div><label for="finalFilterYear">Tahun surat</label><input id="finalFilterYear" type="number" min="1900" max="9999" placeholder="Semua tahun"></div>
+  </div>
+  <button id="finalApply" type="button">Tampilkan Rekap</button><button id="finalExportPdf" type="button">Ekspor PDF</button><button id="finalExportXlsx" type="button">Ekspor Excel</button>
+  <p id="finalAdminMessage" class="final-message" role="status" aria-live="polite"></p>
+  <div id="finalAdminSummary" class="final-scroll"></div>
+  <div id="finalAdminList" class="final-scroll"></div>
+  <button id="finalAdminPrev" type="button">Sebelumnya</button><span id="finalAdminPage"></span><button id="finalAdminNext" type="button">Berikutnya</button>
+</section>
+<script>
+var FinalLettersUI=(function(){
+  var token='',publicPage=0,adminPage=0,publicSeq=0,adminSeq=0,busy=false,publicItems=[],publicName='',publicMutation=0,publicChanges=Object.create(null);
+  function el(id){return document.getElementById(id);}
+  function message(admin,text){el(admin?'finalAdminMessage':'finalPublicMessage').textContent=text;}
+  function date(text){return String(text||'').replace(/^(\d{4})-(\d{2})-(\d{2})/,'$3/$2/$1');}
+  function options(id,names,placeholder){var select=el(id),old=select.value;select.textContent='';[placeholder].concat(names).forEach(function(n,i){var o=document.createElement('option');o.value=i?n:'';o.textContent=n;select.appendChild(o);});select.value=old;}
+  function rpc(name,payload,ok,fail){google.script.run.withSuccessHandler(ok).withFailureHandler(function(e){fail(e&&e.message?e.message:'Proses gagal. Silakan coba kembali.');})[name](payload);}
+  function publicLoad(){var seq=++publicSeq,mutation=publicMutation;publicName=el('finalApplicant').value;publicItems=[];message(false,'Memuat daftar surat...');el('finalPublicList').textContent='';rpc('publicFinalLetters',{applicantName:publicName,page:publicPage},function(r){if(seq!==publicSeq)return;publicItems=r.items;publicItems.forEach(function(item){var change=publicChanges[item.requestId];if(change&&change.version>mutation)item.complete=change.complete;});options('finalApplicant',r.names,'Pilih nama pemohon');el('finalPublicList').textContent='';render(publicItems,false);paging(r,false);message(false,r.total?r.total+' surat ditemukan.':el('finalApplicant').value?'Tidak ada surat yang perlu ditampilkan.':'Pilih nama pemohon.');},function(e){if(seq===publicSeq)message(false,e);});}
+  function updatePublic(id,complete){publicChanges[id]={version:++publicMutation,complete:complete};publicItems.forEach(function(r){if(r.requestId===id)r.complete=complete;});el('finalPublicList').textContent='';render(publicItems,false);}
+  function filters(){return {accessToken:token,applicantName:el('finalFilterName').value,unit:el('finalFilterUnit').value,documentType:el('finalFilterType').value,status:el('finalFilterStatus').value,startDate:el('finalFilterStart').value,endDate:el('finalFilterEnd').value,year:el('finalFilterYear').value,page:adminPage};}
+  function adminLoad(){var seq=++adminSeq;message(true,'Memuat rekap...');el('finalAdminList').textContent='';el('finalAdminSummary').textContent='';rpc('adminFinalLetters',filters(),function(r){if(seq!==adminSeq||!token)return;options('finalFilterName',r.names,'Semua pemohon');options('finalFilterUnit',r.units,'Semua unit');render(r.items,true);summary(r.summary);paging(r,true);message(true,r.total+' surat sesuai filter.');},function(e){if(seq===adminSeq)message(true,e);});}
+  function cell(row,text){var td=document.createElement('td');td.textContent=text;row.appendChild(td);return td;}
+  function table(headers){var t=document.createElement('table'),head=document.createElement('thead'),tr=document.createElement('tr');headers.forEach(function(h){var th=document.createElement('th');th.textContent=h;th.scope='col';tr.appendChild(th);});head.appendChild(tr);t.appendChild(head);var body=document.createElement('tbody');t.appendChild(body);return {table:t,body:body};}
+  function summary(rows){var t=table(['Pemohon','Total wajib','Sudah lengkap','Belum lengkap','Persentase']);rows.forEach(function(g){var tr=document.createElement('tr');[g.applicantName,g.total,g.complete,g.incomplete,(g.total?100*g.complete/g.total:0).toFixed(1)+'%'].forEach(function(v){cell(tr,v);});t.body.appendChild(tr);});el('finalAdminSummary').appendChild(t.table);}
+  function render(items,admin){var headers=admin?['Pemohon','Jenis / nomor','Tanggal surat','Pengajuan aktual','Kelengkapan','Tindakan']:['Jenis / nomor','Tanggal surat','Pengajuan aktual','Kelengkapan','Tindakan'];var t=table(headers);
+    items.forEach(function(r){var tr=document.createElement('tr');if(admin)cell(tr,r.applicantName);cell(tr,r.documentType+' / '+r.number);cell(tr,date(r.letterDate));cell(tr,date(r.requestedAt));var status=cell(tr,r.complete?'Sudah dilengkapi':'Perlu dilengkapi final surat');status.className=r.complete?'final-complete':'final-incomplete';var actions=cell(tr,'');
+      if(admin&&r.complete&&r.fileUrl){var a=document.createElement('a');a.href=r.fileUrl;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Lihat PDF final';actions.appendChild(a);}
+      if(admin||!r.complete){var form=document.createElement('form');form.enctype='multipart/form-data';form.onsubmit=function(e){e.preventDefault();upload(form,r,admin);};var id=document.createElement('input');id.type='hidden';id.name='finalRequestId';id.value=r.requestId;form.appendChild(id);
+        if(admin){var auth=document.createElement('input');auth.type='hidden';auth.name='adminToken';auth.value=token;form.appendChild(auth);}
+        var input=document.createElement('input');input.type='file';input.name='finalPdf';input.accept='.pdf,application/pdf';input.required=true;input.setAttribute('aria-label','PDF final '+r.documentType+' nomor '+r.number);form.appendChild(input);
+        var btn=document.createElement('button');btn.type='submit';btn.textContent=r.complete?'Ganti PDF (admin)':'Unggah PDF final';form.appendChild(btn);actions.appendChild(form);}
+      if(admin&&r.complete){var remove=document.createElement('button');remove.type='button';remove.textContent='Batalkan unggahan';remove.onclick=function(){if(busy)return;var reason=window.prompt('Alasan koreksi unggahan final nomor '+r.number+':');if(!reason)return;busy=true;remove.disabled=true;rpc('adminRemoveFinal',{accessToken:token,requestId:r.requestId,reason:reason},function(){busy=false;updatePublic(r.requestId,false);adminLoad();},function(e){busy=false;remove.disabled=false;message(true,e);});};actions.appendChild(remove);}
+      t.body.appendChild(tr);
+    });el(admin?'finalAdminList':'finalPublicList').appendChild(t.table);
+  }
+  function upload(form,record,admin){if(busy)return;var file=form.elements.finalPdf.files[0];if(!file||!file.size||file.size>20*1024*1024||!/\.pdf$/i.test(file.name)){message(admin,'Pilih satu PDF berukuran maksimal 20 MB.');return;}
+    if(admin&&record.complete&&!window.confirm('Ganti file final nomor '+record.number+'? File aktif sebelumnya akan digantikan.'))return;
+    busy=true;var button=form.querySelector('button');button.disabled=true;message(admin,'Mengunggah PDF final... Mohon tunggu dan jangan tutup halaman.');
+    rpc('uploadFinalLetter',form,function(){busy=false;updatePublic(record.requestId,true);message(admin,'Final berhasil tersimpan.');if(admin&&token&&!el('finalAdminPanel').hidden)adminLoad();},function(e){busy=false;button.disabled=false;message(admin,e);});
+  }
+  function paging(r,admin){var prefix=admin?'finalAdmin':'final';var page=admin?adminPage:publicPage;el(prefix+'Prev').disabled=page===0;el(prefix+'Next').disabled=(page+1)*50>=r.total;el(prefix+'Page').textContent=' Halaman '+(page+1)+' dari '+Math.max(1,Math.ceil(r.total/50))+' ';}
+  function exportFile(format){if(busy)return;busy=true;message(true,'Menyiapkan laporan...');var p=filters();p.format=format;rpc('exportFinalReport',p,function(r){busy=false;if(!token)return;var bytes=Uint8Array.from(atob(r.base64),function(c){return c.charCodeAt(0);}),url=URL.createObjectURL(new Blob([bytes],{type:r.mimeType})),a=document.createElement('a');a.href=url;a.download=r.name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);message(true,'Laporan siap diunduh.');},function(e){busy=false;message(true,e);});}
+  el('finalPublicToggle').onclick=function(){if(busy)return;var panel=el('finalPublicPanel');panel.hidden=!panel.hidden;this.setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden)publicLoad();};
+  el('finalApplicant').onchange=function(){if(busy){this.value=publicName;return;}publicPage=0;publicLoad();};
+  el('finalPrev').onclick=function(){if(!busy){publicPage=Math.max(0,publicPage-1);publicLoad();}};el('finalNext').onclick=function(){if(!busy){publicPage++;publicLoad();}};
+  el('finalApply').onclick=function(){if(!busy){adminPage=0;adminLoad();}};
+  el('finalAdminPrev').onclick=function(){if(!busy){adminPage=Math.max(0,adminPage-1);adminLoad();}};el('finalAdminNext').onclick=function(){if(!busy){adminPage++;adminLoad();}};
+  el('finalExportPdf').onclick=function(){exportFile('pdf');};el('finalExportXlsx').onclick=function(){exportFile('xlsx');};
+  el('finalBulkTab').onclick=function(){if(busy)return;el('bulkPanel').style.display='block';el('finalAdminPanel').hidden=true;};
+  el('finalMonitorTab').onclick=function(){if(busy)return;el('bulkPanel').style.display='none';el('finalAdminPanel').hidden=false;adminLoad();};
+  el('finalAdminLogout').onclick=function(){if(busy)return;token='';BULK_ACCESS_TOKEN=null;adminSeq++;el('finalAdminTabs').hidden=true;el('finalAdminPanel').hidden=true;el('bulkPanel').style.display='none';el('finalAdminList').textContent='';el('finalAdminSummary').textContent='';message(true,'');};
+  window.addEventListener('beforeunload',function(e){if(busy){e.preventDefault();e.returnValue='Proses final surat masih berlangsung.';}});
+  return {unlock:function(value){token=value;el('finalAdminTabs').hidden=false;}};
+})();
+</script>
