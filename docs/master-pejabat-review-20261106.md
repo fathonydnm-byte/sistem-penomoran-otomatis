@@ -18,3 +18,8 @@ Identitas pilihan harus menggabungkan orang dan jabatan, bukan NIP saja. BU dan 
 ## Tahap persiapan
 Folder uji: https://drive.google.com/drive/folders/1RTs3XUbPs-69anexlGHi003lNjbfDIx_
 Salinan template dipisahkan dari master resmi. Tidak ada nomor diterbitkan, deploy atau perubahan aplikasi live. Audit ini memverifikasi data sumber, bukan membuktikan generator sudah berjalan.
+
+## Keputusan lanjutan pemilik — 6 November 2026
+- R2 tanpa gelar yang benar adalah Ali Mustofa. Terapkan koreksi terarah pada adapter bila sumber masih Ali Musthofa, tanpa mengubah master sumber.
+- Ketujuh jabatan tanpa kode tetap boleh menjadi penandatangan; segmen kode dibiarkan kosong. Temuan penolakan pada bagian sebelumnya telah DIGANTIKAN oleh keputusan ini. Dilarang mengambil kode atasan.
+- Kasus contoh langsung mempertahankan /01// dan a.n. mempertahankan /R// agar segmen kosong terlihat. Nama/jabatan tetap diisi normal.
