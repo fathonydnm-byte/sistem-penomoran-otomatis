@@ -44,6 +44,7 @@ Sifat mengikuti master existing: B Biasa, Sg Segera, Pt Penting, R Rahasia, SR S
 Kode langsung: {sifat}-{nomor}/Un.07/01/{kode_pejabat}/{klasifikasi}/{MM}/{YYYY}
 Kode a.n.: {sifat}-{nomor}/Un.07/01/R/{kode_pelaksana}/{klasifikasi}/{MM}/{YYYY}
 Contoh bentuk existing: B-469/Un.07/01/R/BU/PP.00.9/04/2026.
+Pejabat yang kode jabatannya memang kosong tetap boleh menandatangani (keputusan pemilik 6 November 2026). Pertahankan segmen kosong: langsung /Un.07/01//KLASIFIKASI/MM/YYYY dan a.n. /Un.07/01/R//KLASIFIKASI/MM/YYYY. Tidak ada kode atasan/pengganti atau teks null/undefined. Ini keputusan format implementasi untuk merepresentasikan kolom kosong secara literal; tampilkan pada contoh untuk review.
 Kode pelaksana tidak boleh disimpulkan dari nama orang. Gunakan pemetaan jabatan resmi dari Excel dan LetterCodes.html. Rektor tidak menjadi pelaksana a.n. dirinya sendiri.
 Bulan/tahun mengikuti tanggal surat dan tidak dapat diganti terpisah pada generator dokumen. Ini berbeda dengan generator rekomendasi kode existing yang tidak diubah oleh proyek ini.
 Titik internal klasifikasi dipertahankan; tidak menambah titik penutup di akhir kode.
@@ -89,7 +90,7 @@ Master dipelihara admin melalui spreadsheet pada tahap pertama. Gunakan ID stabi
 | Template | template_key, source_doc_id, versi, klasifikasi_tetap, aktif |
 | Konfigurasi | target_folder_id, archive_folder_id, environment, feature_enabled |
 
-Nama tanpa gelar wajib tersedia pada pejabat ND; jangan menghapus gelar dengan tebakan otomatis. Jabatan sama dengan dua pejabat aktif harus ditolak saat validasi master sampai diperbaiki admin.
+Nama tanpa gelar wajib tersedia pada pejabat ND; jangan menghapus gelar dengan tebakan otomatis. Ejaan R2 tanpa gelar yang dikonfirmasi adalah Ali Mustofa. Satu orang dengan dua jabatan tetap dua pilihan. Jabatan sama dengan dua pejabat aktif harus ditolak saat validasi master sampai diperbaiki admin.
 Data uji memakai salinan master ST/SPD sementara, dengan data dummy seperlunya. Master sumber tidak diubah.
 Simpan snapshot data yang digunakan pada transaksi agar pergantian pejabat/master tidak mengubah dokumen yang sedang dipulihkan.
 Kelompok Wakil Rektor mencakup Akademik dan Kelembagaan; Administrasi Umum, Perencanaan dan Keuangan; Kemahasiswaan dan Kerjasama. Tersedia pilihan kelompok dan individual; deduplikasi berdasarkan ID.
