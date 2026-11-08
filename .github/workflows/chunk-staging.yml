@@ -34,4 +34,4 @@ jobs:
         working-directory: .chunk-staging
         run: |
           clasp push --force
-          clasp deploy --description "UJI paket upload ${GITHUB_SHA}"
+          clasp deploy --deploymentId "AKfycbwgAkcpChfX2QWB6IiFSywXpjcR5YD4ExbnOFwZ9ifdWBlczPNjYNglY16VEaHaypqK" --description "UJI paket upload ${GITHUB_SHA}"
