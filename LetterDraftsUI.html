@@ -1,0 +1,228 @@
+<style>
+#draftDialog { width:min(690px,calc(100% - 24px)); max-height:90dvh; padding:20px; overflow:auto; color:#203629; }
+#draftDialog::backdrop { background:#172c22aa; }
+#draftDialog label { display:block; font-size:14px; margin:10px 0; }
+#draftDialog input, #draftDialog select, #draftDialog textarea { display:block; width:100%; margin-top:4px; min-height:38px; }
+#draftDialog .dg-row { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+#draftDialog button { padding:8px 12px; cursor:pointer; }
+#draftDialog button:disabled { opacity:.6; cursor:wait; }
+#draftDialog .dg-person { border:1px solid #cbded1; padding:8px; margin:10px 0; }
+#draftDialog .dg-preview { padding:10px; background:#f0f7f2; white-space:pre-wrap; overflow-wrap:anywhere; }
+#draftDialog [hidden] { display:none !important; }
+</style>
+<dialog id="draftDialog" aria-labelledby="draftTitle">
+  <div class="dg-row"><h2 id="draftTitle">Buat surat dengan template resmi</h2><button id="draftClose" type="button">Tutup</button></div>
+  <p id="draftEnvironment" hidden>Lingkungan uji SIDDIQ. Gunakan data contoh.</p>
+  <p id="draftStatus" role="status" aria-live="polite"></p>
+  <a id="draftAuthorize" target="_blank" rel="noopener noreferrer" hidden>Izinkan akses Google Docs</a>
+  <form id="draftForm" hidden>
+    <fieldset id="draftFields">
+      <label>Jenis template<select name="type"></select></label>
+      <label>Tanggal surat<input type="date" name="date" required></label>
+      <label>Sifat<select name="urgency"></select></label>
+      <label>Penandatangan<select name="signer" required></select></label>
+      <label>Bentuk tanda tangan<select name="signMode"><option value="">Langsung</option><option value="an">a.n. Rektor</option></select></label>
+      <div id="draftClassification"><label>Klasifikasi<select name="classification"></select></label></div>
+      <p id="draftFixed"></p>
+      <div id="draftSpecific"></div>
+      <div id="draftRecipientFields" hidden>
+        <label>Tambahkan penerima dari daftar<select id="draftRecipient"></select></label>
+        <label>Penerima lain<input id="draftRecipientCustom" maxlength="150"></label>
+        <button type="button" id="draftAddRecipient">Tambahkan</button>
+        <ol id="draftRecipients"></ol>
+        <button type="button" id="draftSortRecipients">Kembalikan urutan hierarki</button>
+      </div>
+      <details id="draftApplicant">
+        <summary>Data pemohon untuk pengajuan nomor</summary>
+        <label>Nama pemohon<input name="applicant" maxlength="150"></label>
+        <label>Unit kerja<select name="unit"></select></label>
+      </details>
+    </fieldset>
+    <div class="dg-row">
+      <button type="button" id="draftPreview">Pratinjau</button>
+      <button type="button" id="draftOnly">Buat draft saja</button>
+      <button type="button" id="draftNumber">Buat draft &amp; ajukan nomor</button>
+      <button type="button" id="draftResume" hidden>Lanjutkan proses</button>
+    </div>
+    <p class="dg-preview" id="draftPreviewText" hidden></p>
+    <a id="draftResult" target="_blank" rel="noopener noreferrer" hidden>Buka Google Docs</a>
+  </form>
+</dialog>
+<script>
+(function() {
+  const get=id=>document.getElementById(id);
+  const dialog=get('draftDialog'), form=get('draftForm'), fields=get('draftFields');
+  let options, recipients=[], manualOrder=false, pending=null, busy=false;
+  const kinds={
+    SD:[['subject','Perihal'],['target','Tujuan'],['body','Isi surat','textarea']],
+    UNDANGAN:[['basis','Dasar undangan (opsional)'],['start','Tanggal kegiatan','date'],['time','Waktu'],['place','Tempat'],['agenda','Acara'],['theme','Tema (opsional)'],['note','Catatan (opsional)']],
+    ST_SPD:[['activity','Dalam rangka'],['start','Tanggal mulai','date'],['end','Tanggal selesai (opsional)','date'],['place','Tempat penugasan']],
+    GEDUNG:[['activity','Dalam rangka'],['building','Gedung','building'],['start','Tanggal mulai','date'],['end','Tanggal selesai (opsional)','date'],['time','Waktu WIB'],['participants','Jumlah peserta','number'],['contactName','Nama penanggung jawab'],['contactNumber','Kontak penanggung jawab']],
+    KENDARAAN:[['activity','Dalam rangka'],['start','Tanggal mulai','date'],['end','Tanggal selesai (opsional)','date'],['time','Waktu WIB'],['place','Tempat'],['vehicles','Jumlah kendaraan (opsional)','number'],['participants','Jumlah peserta (opsional)','number'],['contactName','Nama penanggung jawab'],['contactNumber','Kontak penanggung jawab']],
+    SK:[['activity','Dalam rangka']],
+    KHUSUS:[['subject','Perihal'],['body','Isi surat','textarea']]
+  };
+  function optionList(select, list, first) {
+    select.replaceChildren();
+    if(first) select.add(new Option(first,''));
+    list.forEach(item=>select.add(new Option(item[1],item[0])));
+  }
+  function control(parent,name,label,type) {
+    const wrapper=document.createElement('label');
+    wrapper.textContent=label;
+    const input=document.createElement(type==='textarea'?'textarea':type==='building'?'select':'input');
+    input.name=name;
+    if(type==='building') optionList(input,options.buildings.map(x=>[x,x]),'Pilih gedung');
+    else if(type==='textarea') input.rows=7;
+    else input.type=type||'text';
+    if(type==='number') input.min='1';
+    wrapper.append(input);
+    parent.append(wrapper);
+    return input;
+  }
+  function person() {
+    const row=document.createElement('div');
+    row.className='dg-person';
+    [['Nama','personName'],['NIP/NIPPPK (opsional)','personNip'],['Pangkat/golongan','personRank'],['Jabatan','personJob']].forEach(([label,name])=>control(row,name,label));
+    const remove=document.createElement('button');
+    remove.type='button'; remove.textContent='Hapus personel'; remove.onclick=()=>row.remove();
+    row.append(remove); get('draftPeople').append(row);
+  }
+  function drawRecipients() {
+    const root=get('draftRecipients');
+    root.replaceChildren();
+    recipients.forEach((name,index)=>{
+      const li=document.createElement('li');
+      li.textContent=name+' ';
+      [['Naik',-1],['Turun',1],['Hapus',0]].forEach(([caption,delta])=>{
+        const button=document.createElement('button'); button.type='button'; button.textContent=caption;
+        button.disabled=delta!==0 && (index+delta<0 || index+delta>=recipients.length);
+        button.onclick=()=>{
+          if(delta) {
+            const other=index+delta;
+            [recipients[index],recipients[other]]=[recipients[other],recipients[index]];
+            manualOrder=true;
+          } else recipients.splice(index,1);
+          drawRecipients();
+        };
+        li.append(button);
+      });
+      root.append(li);
+    });
+  }
+  function sortRecipients() {
+    const rank=x=>options.recipients.includes(x)?options.recipients.indexOf(x):999;
+    recipients.sort((a,b)=>rank(a)-rank(b)); drawRecipients();
+  }
+  function typeChanged() {
+    const type=form.elements.type.value, config=options.types.find(t=>t.id===type);
+    const area=get('draftSpecific'); area.replaceChildren();
+    kinds[type].forEach(args=>control(area,...args));
+    if(type==='ST_SPD') {
+      const people=document.createElement('div'); people.id='draftPeople'; area.append(people);
+      const add=document.createElement('button'); add.type='button'; add.textContent='Tambah personel'; add.onclick=person; area.append(add); person();
+    }
+    get('draftClassification').hidden=!!config.code;
+    get('draftFixed').textContent=config.code?'Kode klasifikasi '+config.code:'';
+    get('draftRecipientFields').hidden=!['UNDANGAN','KHUSUS'].includes(type);
+    get('draftPreviewText').hidden=true;
+  }
+  function payload() {
+    const data=Object.fromEntries(new FormData(form));
+    data.behalf=data.signMode==='an';
+    delete data.signMode;
+    if(['UNDANGAN','KHUSUS'].includes(data.type)) data.recipients=recipients.slice();
+    if(data.type==='ST_SPD') {
+      data.people=Array.from(form.querySelectorAll('.dg-person'),row=>Array.from(row.querySelectorAll('input'),i=>i.value));
+      ['personName','personNip','personRank','personJob'].forEach(k=>delete data[k]);
+    }
+    return data;
+  }
+  function status(message) { get('draftStatus').textContent=message; }
+  function working(value) {
+    busy=value;
+    fields.disabled=value||!!pending;
+    ['draftPreview','draftOnly','draftNumber','draftResume'].forEach(id=>get(id).disabled=value||(id!=='draftResume'&&!!pending));
+  }
+  function start(number,resume) {
+    if(busy) return;
+    if(!resume) {
+      if(!form.reportValidity()) return;
+      const data=payload();
+      if(number&&(!data.applicant.trim()||!data.unit)) {
+        get('draftApplicant').open=true;
+        status('Isi nama pemohon dan unit kerja untuk pengajuan nomor.');
+        return;
+      }
+      pending={data,number,token:crypto.randomUUID()};
+    }
+    working(true);
+    get('draftResult').hidden=true;
+    get('draftAuthorize').hidden=true;
+    status(number?'Menyiapkan dokumen dan nomor…':'Menyiapkan Google Docs…');
+    google.script.run.withSuccessHandler(result=>{
+      if (result.authorizationUrl) {
+        const url=new URL(result.authorizationUrl);
+        if (url.protocol==='https:' && ['accounts.google.com','script.google.com'].includes(url.hostname)) {
+          get('draftAuthorize').href=url.href;
+          get('draftAuthorize').hidden=false;
+        }
+        working(false);get('draftResume').hidden=false;
+        status('Akun pengelola perlu mengizinkan Google Docs. Setelah selesai, pilih Lanjutkan proses.');
+        return;
+      }
+      pending=null;working(false);get('draftResume').hidden=true;
+      if(result.invalid) {status(result.message);return;}
+      if(result.noSlot) {status(result.message+' Isian tetap tersedia untuk membuat draft saja.');return;}
+      status('Surat siap · '+result.code);
+      get('draftResult').href=result.url;get('draftResult').hidden=false;
+    }).withFailureHandler(error=>{
+      const message=error.message||String(error);
+      working(false);
+      get('draftResume').hidden=false;
+      status(message+' Gunakan Lanjutkan proses untuk mencoba kembali.');
+    }).createLetterDraft(pending.data,pending.token,pending.number);
+  }
+  get('draftGeneratorOpen').onclick=()=>{
+    dialog.showModal();
+    if(options) return;
+    status('Memuat master surat…');
+    google.script.run.withSuccessHandler(data=>{
+      options=data;
+      get('draftEnvironment').hidden=!data.staging;
+      if(data.staging) get('draftNumber').textContent='Buat draft & ajukan nomor uji';
+      optionList(form.elements.type,data.types.map(t=>[t.id,t.label]));
+      optionList(form.elements.urgency,['B','Pt','Sg','R','SR'].map(code=>[code,data.urgency[code]]));
+      optionList(form.elements.signer,data.officials.map(o=>[o.id,o.label]),'Pilih penandatangan');
+      optionList(form.elements.classification,data.classifications.map(c=>[c[0],c[0]+' — '+c[1]]),'Pilih kode');
+      optionList(form.elements.unit,data.units.map(x=>[x,x]),'Pilih unit');
+      optionList(get('draftRecipient'),data.recipients.map(x=>[x,x]),'Pilih penerima');
+      form.elements.date.value=data.today; typeChanged(); form.hidden=false; status('');
+    }).withFailureHandler(e=>status(e.message||String(e))).getLetterDraftOptions();
+  };
+  get('draftClose').onclick=()=>dialog.close();
+  form.onsubmit=e=>e.preventDefault();
+  form.elements.type.onchange=typeChanged;
+  get('draftAddRecipient').onclick=()=>{
+    const input=get('draftRecipientCustom');
+    const name=input.value.trim()||get('draftRecipient').value;
+    if(name&&!recipients.some(x=>x.toLowerCase()===name.toLowerCase())) recipients.push(name);
+    input.value='';get('draftRecipient').value='';
+    if(!manualOrder) sortRecipients(); else drawRecipients();
+  };
+  get('draftSortRecipients').onclick=()=>{manualOrder=false;sortRecipients();};
+  get('draftPreview').onclick=()=>{
+    if(!form.reportValidity()||busy) return;
+    const data=payload();
+    working(true);status('Memeriksa isian…');
+    google.script.run.withSuccessHandler(r=>{
+      working(false);status('');
+      const box=get('draftPreviewText');box.hidden=false;
+      box.textContent=[r.code,r.date,r.subject,'Yth. '+r.to.join('\n       '),'Penandatangan: '+r.signer,r.from].join('\n');
+    }).withFailureHandler(e=>{working(false);status(e.message||String(e));}).previewLetterDraft(data);
+  };
+  get('draftOnly').onclick=()=>start(false,false);
+  get('draftNumber').onclick=()=>start(true,false);
+  get('draftResume').onclick=()=>start(pending.number,true);
+})();
+</script>

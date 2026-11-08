@@ -34,6 +34,7 @@ jobs:
           node tests/final-resumable.cjs
           node tests/final-upload-client.cjs
           node tests/production-release.cjs
+          node tests/letter-drafts.cjs
 
       - name: Pulihkan kredensial clasp
         run: echo "$CLASP_CREDENTIALS" > "$HOME/.clasprc.json"
