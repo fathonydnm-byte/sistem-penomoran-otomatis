@@ -127,9 +127,16 @@
     hint.className='dg-search-status'; hint.setAttribute('role','status');
     suggestions.className='dg-suggestions';
     nameInput.parentElement.after(hint,suggestions);
-    let timer, sequence=0;
+    let timer, sequence=0, selectedEmployee=null;
     nameInput.addEventListener('input',()=>{
       clearTimeout(timer);
+      if(selectedEmployee && nameInput.value!==selectedEmployee.name) {
+        ['personNip','personRank','personJob'].forEach((field,i)=>{
+          const input=row.querySelector('[name="'+field+'"]');
+          if(input.value===[selectedEmployee.nip,selectedEmployee.rank,selectedEmployee.title][i]) input.value='';
+        });
+        selectedEmployee=null;
+      }
       const current=++sequence, query=nameInput.value.trim();
       suggestions.replaceChildren();
       hint.textContent=query.length<2?'Isi manual atau cari nama dari master pegawai.':'Mencari pegawai…';
@@ -143,7 +150,7 @@
             const choice=document.createElement('button'); choice.type='button';
             choice.textContent=employee.name+' — '+employee.title+(employee.nip?' — '+employee.nip:'');
             choice.onclick=()=>{
-              ++sequence; clearTimeout(timer);
+              ++sequence; clearTimeout(timer); selectedEmployee=employee;
               ['personName','personNip','personRank','personJob'].forEach((field,i)=>{
                 row.querySelector('[name="'+field+'"]').value=[employee.name,employee.nip,employee.rank,employee.title][i];
               });
