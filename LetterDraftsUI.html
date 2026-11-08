@@ -124,9 +124,9 @@
   function drawRecipients() {
     const root=get('draftRecipients');
     root.replaceChildren();
-    recipients.forEach((name,index)=>{
+    recipients.forEach(({title},index)=>{
       const li=document.createElement('li');
-      li.textContent=name+' ';
+      li.textContent=title+' ';
       [['Naik',-1],['Turun',1],['Hapus',0]].forEach(([caption,delta])=>{
         const button=document.createElement('button'); button.type='button'; button.textContent=caption;
         button.disabled=delta!==0 && (index+delta<0 || index+delta>=recipients.length);
@@ -144,7 +144,10 @@
     });
   }
   function sortRecipients() {
-    const rank=x=>options.recipients.includes(x)?options.recipients.indexOf(x):999;
+    const rank=x=>{
+      const index=options.recipients.findIndex(o=>o.title.toLowerCase()===x.title.toLowerCase());
+      return index<0?options.recipients.length:index;
+    };
     recipients.sort((a,b)=>rank(a)-rank(b)); drawRecipients();
   }
   function typeChanged() {
@@ -168,7 +171,7 @@
     delete data.signMode;
     delete data.applicant;
     delete data.unit;
-    if(['UNDANGAN','KHUSUS'].includes(data.type)) data.recipients=recipients.slice();
+    if(['UNDANGAN','KHUSUS'].includes(data.type)) data.recipients=recipients.map(o=>o.id?{id:o.id}:o.title);
     if(data.type==='ST_SPD') {
       data.people=Array.from(form.querySelectorAll('.dg-person'),row=>Array.from(row.querySelectorAll('input'),i=>i.value));
       ['personName','personNip','personRank','personJob'].forEach(k=>delete data[k]);
@@ -296,7 +299,7 @@
       optionList(form.elements.signer,data.officials.map(o=>[o.id,o.label]),'Pilih penandatangan');
       optionList(form.elements.classification,data.classifications.map(c=>[c[0],c[0]+' — '+c[1]]),'Pilih kode klasifikasi');
       optionList(form.elements.unit,data.units.map(x=>[x,x]),'Pilih unit');
-      optionList(get('draftRecipient'),data.recipients.map(x=>[x,x]),'Pilih penerima');
+      optionList(get('draftRecipient'),data.recipients.map(o=>[o.id,o.title]),'Pilih penerima dari MASTER PEJABAT');
       form.elements.date.value=data.today; typeChanged(); form.hidden=false; status(''); updateControls();
     }).withFailureHandler(e=>status(e.message||String(e))).getLetterDraftOptions();
   };
@@ -306,8 +309,9 @@
   form.elements.type.onchange=typeChanged;
   get('draftAddRecipient').onclick=()=>{
     const input=get('draftRecipientCustom');
-    const name=input.value.trim()||get('draftRecipient').value;
-    if(name&&!recipients.some(x=>x.toLowerCase()===name.toLowerCase())) recipients.push(name);
+    const title=input.value.trim();
+    const recipient=title?{title}:options.recipients.find(o=>o.id===get('draftRecipient').value);
+    if(recipient&&!recipients.some(o=>o.title.toLowerCase()===recipient.title.toLowerCase())) recipients.push(recipient);
     input.value='';get('draftRecipient').value='';
     if(!manualOrder) sortRecipients(); else drawRecipients();
   };
