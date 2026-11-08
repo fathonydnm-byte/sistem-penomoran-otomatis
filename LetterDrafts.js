@@ -35,6 +35,50 @@ function letterDraftMaster_(mode) {
   if(!mode.masterBook) mode.masterBook=SpreadsheetApp.openById(mode.masterId);
   return mode.masterBook;
 }
+// Read only the four approved personnel fields; never return NPWP or other HR columns.
+function searchLetterDraftEmployees(query) {
+  var mode=letterDraftGuard_();
+  var q=letterDraftText_(query,100,'Pencarian nama').toLowerCase().replace(/\s+/g,' ').trim();
+  if(q.length<2) return {items:[],more:false};
+  var sheet=letterDraftMaster_(mode).getSheetByName('Master_Pegawai');
+  if(!sheet) throw Error('Master pegawai belum tersedia. Anda tetap dapat mengisi manual.');
+  var last=sheet.getLastRow();
+  if(last<2) return {items:[],more:false};
+  var identity=sheet.getRange(1,1,last,2).getDisplayValues();
+  var roles=sheet.getRange(1,4,last,2).getDisplayValues();
+  if(identity[0][0].trim()!=='NIP/NIPPPK'||identity[0][1].trim()!=='Nama'||
+     roles[0][0].trim()!=='Pangkat/Gol'||roles[0][1].trim()!=='Jabatan') {
+    throw Error('Struktur Master_Pegawai berubah. Anda tetap dapat mengisi manual.');
+  }
+  var words=q.split(' '), items=[];
+  for(var i=1;i<identity.length;i++) {
+    var name=String(identity[i][1]||'').trim(), nip=String(identity[i][0]||'').trim();
+    var searchable=(name+' '+nip).toLowerCase();
+    if(!name||!words.every(function(w){return searchable.indexOf(w)!==-1;})) continue;
+    items.push({name:name,nip:nip,rank:String(roles[i][0]||'').trim(),title:String(roles[i][1]||'').trim()});
+    if(items.length===21) break;
+  }
+  return {items:items.slice(0,20),more:items.length>20};
+}
+// Match the approved ST/SPD sample (widths in points, total 465 pt).
+function letterDraftPeopleTable_(table) {
+  [32.25,118.5,128.25,59.25,126.75].forEach(function(width,i){table.setColumnWidth(i,width);});
+  table.setBorderWidth(0.5).setBorderColor('#000000');
+  for(var r=0;r<table.getNumRows();r++) {
+    var row=table.getRow(r);
+    for(var c=0;c<row.getNumCells();c++) {
+      var cell=row.getCell(c);
+      cell.setPaddingTop(5).setPaddingBottom(5).setPaddingLeft(5).setPaddingRight(5)
+        .setVerticalAlignment(DocumentApp.VerticalAlignment.TOP);
+      cell.editAsText().setFontFamily('Arial').setFontSize(11).setBold(r===0);
+      for(var n=0;n<cell.getNumChildren();n++) {
+        var paragraph=cell.getChild(n).asParagraph();
+        paragraph.setAlignment(r===0?DocumentApp.HorizontalAlignment.CENTER:DocumentApp.HorizontalAlignment.LEFT)
+          .setIndentStart(0).setIndentEnd(0).setIndentFirstLine(0).setSpacingBefore(0).setSpacingAfter(0).setLineSpacing(1.15);
+      }
+    }
+  }
+}
 function letterDraftOfficials_(mode) {
   var sheet=letterDraftMaster_(mode).getSheetByName('MASTER PEJABAT');
   if (!sheet || sheet.getLastRow()<4) throw Error('Master pejabat belum tersedia. Hubungi Bagian Umum.');
@@ -173,7 +217,6 @@ function letterDraftModel_(p,officials,buildings) {
       if (!Array.isArray(row)||row.length!==4) throw Error('Data personel tidak valid.');
       var person=row.map(function(x) {return letterDraftText_(x,150,'Data personel');});
       if (!person[0] || !person[3]) throw Error('Nama dan jabatan personel wajib diisi.');
-      if (person[1]&&!/^\d{18}$/.test(person[1])) throw Error('NIP/NIPPPK harus 18 digit atau kosong.');
       return person;
     });
   }
@@ -271,14 +314,10 @@ function letterDraftRender_(doc,m) {
     set(3,m.target[0],true);
     set(10,'Dalam rangka '+m.activity+', mohon perkenaan Bapak '+m.target[0]+' untuk memberikan izin dan menugaskan nama yang tersebut di bawah ini:');
     var existing=children[11].asTable();
-    if(m.people.length===1) {
-      m.people[0].forEach(function(value,i) {existing.getCell(i,1).editAsText().setText(': '+value);});
-    } else {
-      var pos=body.getChildIndex(existing);
-      var table=body.insertTable(pos,[['No.','Nama','NIP/NIPPPK','Pangkat/Gol.','Jabatan']].concat(m.people.map(function(r,i){return [String(i+1)].concat(r);})));
-      table.getRow(0).editAsText().setBold(true);
-      existing.removeFromParent();
-    }
+    var pos=body.getChildIndex(existing);
+    var table=body.insertTable(pos,[['No.','Nama','NIP/NIPPPK','Pangkat/Gol.','Jabatan']].concat(m.people.map(function(r,i){return [String(i+1)].concat(r);})));
+    letterDraftPeopleTable_(table);
+    existing.removeFromParent();
     set(12,'Hari dan tanggal penugasan '+m.eventDate+' di '+m.place+'.');
   }
   if(type==='GEDUNG'||type==='KENDARAAN') {
