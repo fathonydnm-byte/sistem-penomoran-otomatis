@@ -39,7 +39,7 @@
       <label>Sifat<select name="urgency"></select></label>
       <label>Penandatangan<select name="signer" required></select></label>
       <label>Bentuk tanda tangan<select name="signMode"><option value="">Langsung</option><option value="an">a.n. Rektor</option></select></label>
-      <div id="draftClassification"><label>Klasifikasi<select name="classification"></select></label></div>
+      <div id="draftClassification"><label>Klasifikasi <span aria-hidden="true">*</span><select name="classification" required></select></label></div>
       <p id="draftFixed"></p>
       <div id="draftSpecific"></div>
       <div id="draftRecipientFields" hidden>
@@ -64,7 +64,7 @@
       <button type="button" id="draftNew" hidden>Surat baru</button>
     </div>
   </form>
-  <p id="draftStatus" role="status"></p>
+  <p id="draftStatus" role="status" tabindex="-1"></p>
   <a id="draftAuthorize" target="_blank" rel="noopener noreferrer" hidden>Izinkan akses Google Docs</a>
   <div id="draftLoading" role="status" hidden>
     <div class="dg-loading-card">
@@ -150,12 +150,15 @@
   function typeChanged() {
     const type=form.elements.type.value, config=options.types.find(t=>t.id===type);
     const area=get('draftSpecific'); area.replaceChildren();
-    kinds[type].forEach(args=>control(area,...args));
+    kinds[type].forEach(args=>{
+      control(area,...args).required=!args[1].endsWith('(opsional)');
+    });
     if(type==='ST_SPD') {
       const people=document.createElement('div'); people.id='draftPeople'; area.append(people);
       const add=document.createElement('button'); add.type='button'; add.textContent='Tambah personel'; add.onclick=person; area.append(add); person();
     }
     get('draftClassification').hidden=!!config.code;
+    form.elements.classification.required=!config.code;
     get('draftFixed').textContent=config.code?'Kode klasifikasi '+config.code:'';
     get('draftRecipientFields').hidden=!['UNDANGAN','KHUSUS'].includes(type);
   }
@@ -172,7 +175,11 @@
     }
     return data;
   }
-  function status(message) { get('draftStatus').textContent=message; }
+  function status(message,focus=false) {
+    const output=get('draftStatus');
+    output.textContent=message;
+    if(focus) output.focus();
+  }
   function updateControls() {
     fields.disabled=busy||!!pending||!!draft;
     const canNumber=!!draft&&!draft.numbered;
@@ -223,7 +230,7 @@
           status('Akun pengelola perlu mengizinkan Google Docs. Setelah selesai, pilih Lanjutkan proses.');
         } else {
           pending=null;
-          status(result.message);
+          status(result.message,true);
         }
         working('');
         return;
@@ -242,14 +249,27 @@
     }).withFailureHandler(error=>{
       if(tab&&!tab.closed) tab.close();
       working('');
-      status((error.message||String(error))+' Pilih Lanjutkan proses untuk mencoba kembali.');
+      status((error.message||String(error))+' Pilih Lanjutkan proses untuk mencoba kembali.',true);
     });
     if(number) rpc.numberLetterDraft(token,data.applicant,data.unit);
     else rpc.createLetterDraft(data,token,false);
   }
   function startPreview() {
-    if(busy||pending||draft||!form.reportValidity()) return;
-    pending={data:payload(),number:false,token:crypto.randomUUID()};
+    if(busy||pending||draft) return;
+    status('');
+    if(!form.elements.classification.validity.valid) {
+      status('Pilih kode klasifikasi sebelum membuka pratinjau.');
+      form.elements.classification.reportValidity();
+      return;
+    }
+    if(!form.reportValidity()) return;
+    const data=payload();
+    if(data.recipients&&!data.recipients.length) {
+      status('Tambahkan setidaknya satu penerima sebelum membuka pratinjau.');
+      get('draftRecipient').focus();
+      return;
+    }
+    pending={data,number:false,token:crypto.randomUUID()};
     runPending();
   }
   function startNumber() {
@@ -274,7 +294,7 @@
       optionList(form.elements.type,data.types.map(t=>[t.id,t.label]));
       optionList(form.elements.urgency,['B','Pt','Sg','R','SR'].map(code=>[code,data.urgency[code]]));
       optionList(form.elements.signer,data.officials.map(o=>[o.id,o.label]),'Pilih penandatangan');
-      optionList(form.elements.classification,data.classifications.map(c=>[c[0],c[0]+' — '+c[1]]),'Pilih kode');
+      optionList(form.elements.classification,data.classifications.map(c=>[c[0],c[0]+' — '+c[1]]),'Pilih kode klasifikasi');
       optionList(form.elements.unit,data.units.map(x=>[x,x]),'Pilih unit');
       optionList(get('draftRecipient'),data.recipients.map(x=>[x,x]),'Pilih penerima');
       form.elements.date.value=data.today; typeChanged(); form.hidden=false; status(''); updateControls();
