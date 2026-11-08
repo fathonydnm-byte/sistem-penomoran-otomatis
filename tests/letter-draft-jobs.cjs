@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 let rows=[],locked=false,privateBook=true,flushes=0;
 const legacy=new Map(),sheets={};
-const sheet={getSheetId:()=>42,getLastRow:()=>rows.length,getRange(row,col,h=1,w=1){return {
+const sheet={getSheetId:()=>42,getName:()=> 'GENERATOR_JOBS',getLastRow:()=>rows.length,getRange(row,col,h=1,w=1){return {
  getValues:()=>Array.from({length:h},(_,i)=>Array.from({length:w},(_,j)=>rows[row-1+i]?.[col-1+j]??'')),
  setValues(values){if(row>rows.length)assert(locked,'new row must hold script lock');values.forEach((r,i)=>{rows[row-1+i]||=[];r.forEach((v,j)=>rows[row-1+i][col-1+j]=v);});},
  createTextFinder(text){return {matchEntireCell(){return this;},findAll(){return rows.flatMap((r,i)=>i>=row-1&&String(r[col-1])===text?[{getRow:()=>i+1}]:[]);}}}
@@ -9,7 +9,7 @@ const sheet={getSheetId:()=>42,getLastRow:()=>rows.length,getRange(row,col,h=1,w
 const book={getId:()=> 'private-book',getSheetById:id=>id===42?sheets.GENERATOR_JOBS:null,getSheetByName:n=>{assert(locked,'sheet metadata must be first read under lock');return sheets[n];},insertSheet(n){assert(locked);sheets[n]=sheet;return sheet;}};
 const ctx=vm.createContext({console,Date,SpreadsheetApp:{openById:id=>{assert.equal(id,'private-book');return book;},flush(){flushes++;}},
  PropertiesService:{getScriptProperties:()=>({getProperty:k=>legacy.get(k),setProperty:(k,v)=>legacy.set(k,v)})},
- finalLedgerBook_:()=>{assert(locked,'workbook must first open under lock');if(!privateBook)throw Error('must be private');return book;},
+ finalLedgerBook_:()=>{if(!legacy.get('LETTER_DRAFT_JOBS_V1_SHEET_ID'))assert(locked,'first workbook open must be under lock');if(!privateBook)throw Error('must be private');return book;},
  letterDraftLock_:fn=>{assert(!locked);locked=true;try{return fn();}finally{locked=false;}}
 });
 vm.runInContext(fs.readFileSync('LetterDraftJobs.js','utf8'),ctx);

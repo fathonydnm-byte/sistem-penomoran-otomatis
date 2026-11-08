@@ -1,19 +1,27 @@
 // Durable private job ledger. Script Properties remain read-only legacy fallback.
 // Construct outside the job lock; get/set are called with an active per-token lease.
 function letterDraftJobStore_(token) {
-  var props=PropertiesService.getScriptProperties();
-  // Open the workbook only after locking: even the initial openById can cache
-  // sheet metadata. Reopening a pre-lock handle does not invalidate that cache.
-  var sheet=letterDraftLock_(function() {
-    var book=finalLedgerBook_();
-    var s=book.getSheetByName('GENERATOR_JOBS');
-    if(!s) {
-      s=book.insertSheet('GENERATOR_JOBS');
-      s.getRange(1,1,1,3).setValues([['Token','Status JSON','Diperbarui']]);
-      SpreadsheetApp.flush();
-    }
-    return s;
-  });
+  var props=PropertiesService.getScriptProperties(), sheetKey='LETTER_DRAFT_JOBS_V1_SHEET_ID';
+  var sheetId=props.getProperty(sheetKey), sheet;
+  if(sheetId) {
+    // The stable sheet ID avoids a global initialization lock on every request.
+    sheet=finalLedgerBook_().getSheetById(Number(sheetId));
+    if(!sheet || sheet.getName()!=='GENERATOR_JOBS') throw Error('Catatan proses tidak ditemukan. Hubungi admin.');
+  } else {
+    // First open must occur inside the lock: a pre-lock workbook handle can
+    // cache an absent sheet even after another execution has created it.
+    sheet=letterDraftLock_(function() {
+      var book=finalLedgerBook_();
+      var s=book.getSheetByName('GENERATOR_JOBS');
+      if(!s) {
+        s=book.insertSheet('GENERATOR_JOBS');
+        s.getRange(1,1,1,3).setValues([['Token','Status JSON','Diperbarui']]);
+        SpreadsheetApp.flush();
+      }
+      props.setProperty(sheetKey,String(s.getSheetId()));
+      return s;
+    });
+  }
   var row=0, legacyKey='LETTER_DRAFT_'+token;
   function locate() {
     if(row && String(sheet.getRange(row,1).getValues()[0][0])===token) return row;
