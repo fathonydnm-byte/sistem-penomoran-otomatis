@@ -5,9 +5,12 @@ for(const file of fs.readdirSync('.'))if(/\.(js|html)$/.test(file))fs.copyFileSy
 let code=fs.readFileSync(path.join(dir,'Code.js'),'utf8');
 for(const key of ['SPREADSHEET_ID','ROOT_FOLDER_ID','WEB_APP_URL'])code=code.replace(new RegExp("  "+key+": '[^']*'"),"  "+key+": ''");
 code=code.replace('function doGet() {','function doGet() {\n  bindChunkStaging_();');
+code=code.replace('ensureFinalProduction_();','ensureChunkStagingLedger_();');
 code=code.replace('if (!SPREADSHEET_INSTANCE_) {','if (!SPREADSHEET_INSTANCE_) {\n    bindChunkStaging_();');
 code=code.replace("HtmlService.createHtmlOutputFromFile('FinalLettersUI').getContent();","HtmlService.createHtmlOutputFromFile('FinalLettersUI').getContent()+HtmlService.createHtmlOutputFromFile('ChunkLoadTest').getContent();");
 fs.writeFileSync(path.join(dir,'Code.js'),code);
+const storage=fs.readFileSync('FinalStorage.js','utf8').replace(/FINAL_PROD_/g,'CHUNK_UAT_');
+fs.writeFileSync(path.join(dir,'FinalStorage.js'),storage);
 let server=fs.readFileSync(path.join(dir,'FinalUpload.js'),'utf8');
 for(const [name,internal]of [['startFinalUpload','chunkTestStart_'],['sendFinalUploadChunk','chunkTestSend_'],['finishFinalUpload','chunkTestFinish_'],['cancelFinalUpload','chunkTestCancel_']])server=server.replace('function '+name+'(','function '+internal+'(');
 fs.writeFileSync(path.join(dir,'FinalUpload.js'),server);
