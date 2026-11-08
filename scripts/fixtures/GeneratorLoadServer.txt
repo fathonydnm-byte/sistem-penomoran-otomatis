@@ -38,13 +38,14 @@ function generatorLoadVerify(run,jobs) {
   generatorLoadGuard_();
   var p=PropertiesService.getScriptProperties(),seen={}, docs={}, rows=reservationRows_(getRequiredSheet_(APP.DATA_SHEET),REQUEST_HEADERS.length);
   var results=jobs.map(function(input){
-    var job=JSON.parse(p.getProperty('LETTER_DRAFT_'+input.token)||'{}');
+    var job=typeof letterDraftJobStore_==='function'?letterDraftJobStore_(input.token).get():JSON.parse(p.getProperty('LETTER_DRAFT_'+input.token)||'{}');
     var matching=rows.filter(function(r){return r[15]===input.token;});
     var issues=[];
     if(matching.length!==1) issues.push('register count '+matching.length);
     var r=matching[0]||[], unique=r[2]+'/'+r[12]+'/'+r[1];
     if(seen[unique]) issues.push('duplicate number');seen[unique]=true;
     if(docs[job.docId]) issues.push('duplicate document');docs[job.docId]=true;
+    if(r[5]!==job.request.to) issues.push('recipient register truncated');
     if(r[10]!==REQUEST_STATUS.ACTIVE||!r[14]) issues.push('PDF archive/status missing');
     if(!job.numberedResult) issues.push('numbered result missing');
     if(job.docId && job.numberedResult) {

@@ -120,3 +120,9 @@ const html=fs.readFileSync(path.join(root,'Index.html'),'utf8');
 for(const script of html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g))new vm.Script(script[1]);
 console.log(passed+' scenarios passed; client JavaScript parses.');
 
+test('multi-recipient generator routing survives normalization without 300-character truncation',()=>{
+ const recipients=Array.from({length:30},(_,i)=>'Pejabat undangan dengan jabatan lengkap '+i).join(', ');
+ const r=ctx.reserveRequest({...payload,to:recipients});
+ const saved=sheets.PERMINTAAN.rows.find(row=>row[11]===r.requestId);
+ assert.equal(saved[5],recipients);
+});

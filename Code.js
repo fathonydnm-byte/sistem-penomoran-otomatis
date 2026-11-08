@@ -418,7 +418,7 @@ function normalizePublicRequest_(formObject) {
     documentType: cleanText_(formObject.documentType, 40),
     subject: cleanMultilineText_(formObject.subject, 500),
     from: cleanMultilineText_(formObject.from, 300),
-    to: cleanMultilineText_(formObject.to, 300),
+    to: cleanMultilineText_(formObject.to, 6000),
     applicantName: cleanText_(formObject.applicantName, 150),
     unit: cleanText_(formObject.unit, 200),
     token: cleanText_(formObject.requestToken, 120),
