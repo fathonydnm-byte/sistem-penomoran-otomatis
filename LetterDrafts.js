@@ -9,14 +9,13 @@ var LETTER_DRAFT_TYPES = {
 };
 var LETTER_DRAFT_URGENCY = { B:'Biasa', Sg:'Segera', Pt:'Penting', R:'Rahasia', SR:'Sangat Rahasia' };
 var LETTER_DRAFT_PENDING = '[BELUM BERNOMOR]';
-var LETTER_DRAFT_RECIPIENTS = [
-  'Ketua dan Sekretaris Senat', 'Rektor', 'Seluruh Wakil Rektor', 'Wakil Rektor Bidang Akademik dan Kelembagaan',
-  'Wakil Rektor Bidang Administrasi Umum, Perencanaan dan Keuangan', 'Wakil Rektor Bidang Kemahasiswaan dan Kerja Sama',
-  'Kepala Biro AAKK', 'Kepala Biro AUPK', 'Direktur Pascasarjana', 'Dekan Fakultas', 'Wakil Direktur Pascasarjana',
-  'Wakil Dekan Fakultas', 'Ketua LPM', 'Ketua LP2M', 'Kepala SPI', 'Wakil Koordinator Kopertais', 'Kepala UPT',
-  'Ketua Program Studi dan Sekretaris Program Studi', 'Kepala Bagian Umum', 'Kepala Bagian Akademik',
-  'Ketua Tim pada Biro AAKK/AUPK', 'Kepala Bagian Umum dan Kepala Subbagian Umum pada Fakultas/Pascasarjana',
-  'Dosen', 'Tenaga Kependidikan'
+var LETTER_DRAFT_RECIPIENT_HIERARCHY = [
+  /^(?:Ketua|Sekretaris).*\bSenat\b/i, /^Rektor\b/i, /^Wakil Rektor\b/i, /^Kepala Biro\b/i,
+  /^Direktur Pascasarjana\b/i, /^Dekan\b/i, /^Wakil Direktur Pascasarjana\b/i, /^Wakil Dekan\b/i,
+  /^Ketua (?:Lembaga|LPM|LP2M)\b/i, /^Kepala (?:Satuan Pengawas Internal|SPI)\b/i,
+  /^Wakil Koordinator Kopertais\b/i, /^Kepala (?:UPT|Pusat|Perpustakaan)\b/i,
+  /^(?:Ketua|Sekretaris) Program Studi\b/i, /^(?:Kepala Bagian|Ketua Tim)\b/i,
+  /^Kepala Sub[. ]*\s*Bagian\b/i, /^Dosen\b/i, /^Tenaga Kependidikan\b/i
 ];
 function letterDraftGuard_() {
   var scriptId=ScriptApp.getScriptId();
@@ -38,32 +37,56 @@ function letterDraftOfficials_(mode) {
   var seen=new Set();
   var officials=sheet.getRange(4,1,sheet.getLastRow()-3,5).getDisplayValues().map(function(row) {
     return row.map(function(value) {return value.trim();});
-  }).filter(function(r) {return r[1] && r[3] && r[4];}).map(function(r) {
+  }).filter(function(r) {return r[3];}).map(function(r) {
     var id=Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,JSON.stringify([r[1],r[3],r[0]])));
     if(seen.has(id)) throw Error('Master pejabat berisi baris ganda. Hubungi Bagian Umum.');
     seen.add(id);
     return {id:id,code:r[0],name:r[1],nip:r[2],title:r[3],short:r[0]==='R2'&&r[4]==='Ali Musthofa'?'Ali Mustofa':r[4]};
   });
-  if (!officials.length) throw Error('Master pejabat belum tersedia. Hubungi Bagian Umum.');
+  if (!officials.some(function(o) {return o.name && o.short;})) {
+    throw Error('Master pejabat belum tersedia. Hubungi Bagian Umum.');
+  }
   return officials;
 }
 function letterDraftBuildings_(mode) {
   var sheet=SpreadsheetApp.openById(mode.masterId).getSheetByName('MASTER GEDUNG');
   if (!sheet || sheet.getLastRow()<2) {
-    return mode.staging?[{name:'Gedung Uji A (data buatan)',recipient:'Rektor'}]:[];
+    return mode.staging?[{name:'Gedung Uji A (data buatan)',recipient:'R'}]:[];
   }
   return sheet.getRange(2,1,sheet.getLastRow()-1,2).getDisplayValues().map(function(row) {
     return {name:row[0].trim(),recipient:row[1].trim()};
   }).filter(function(row) {return row.name && row.recipient;});
 }
+function letterDraftRecipientOptions_(officials) {
+  var seen=new Set();
+  return officials.map(function(o) {
+    var role=o.title.replace(/^(?:Plt|Plh|Pj)\.?\s+/i,'');
+    var rank=LETTER_DRAFT_RECIPIENT_HIERARCHY.findIndex(function(rule) {return rule.test(role);});
+    return {id:o.id,title:o.title,rank:rank<0?LETTER_DRAFT_RECIPIENT_HIERARCHY.length:rank};
+  }).sort(function(a,b) {return a.rank-b.rank;}).filter(function(o) {
+    var key=o.title.toLowerCase();
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).map(function(o) {return {id:o.id,title:o.title};});
+}
+function letterDraftRoutingTitle_(officials,reference) {
+  var key=reference.toLowerCase();
+  var official=officials.find(function(o) {return o.code.toLowerCase()===key;}) ||
+    officials.find(function(o) {return o.title.toLowerCase()===key;});
+  if(!official) throw Error('Tujuan surat ('+reference+') belum ditemukan di MASTER PEJABAT. Hubungi Bagian Umum.');
+  return official.title;
+}
 function getLetterDraftOptions() {
   var mode=letterDraftGuard_(), buildings=letterDraftBuildings_(mode);
+  var officials=letterDraftOfficials_(mode);
   return {
     staging:mode.staging,
-    officials:letterDraftOfficials_(mode).map(function(o) {return {id:o.id,label:o.short+' — '+o.title,rector:o.code==='R'};}),
+    officials:officials.filter(function(o) {return o.name && o.short;})
+      .map(function(o) {return {id:o.id,label:o.short+' — '+o.title,rector:o.code==='R'};}),
     types:Object.keys(LETTER_DRAFT_TYPES).filter(function(k) {return k!=='GEDUNG'||buildings.length;})
       .map(function(k) {return {id:k,label:LETTER_DRAFT_TYPES[k][0],code:LETTER_DRAFT_TYPES[k][1]};}),
-    urgency:LETTER_DRAFT_URGENCY,classifications:LETTER_DRAFT_CLASSIFICATIONS,recipients:LETTER_DRAFT_RECIPIENTS,
+    urgency:LETTER_DRAFT_URGENCY,classifications:LETTER_DRAFT_CLASSIFICATIONS,recipients:letterDraftRecipientOptions_(officials),
     buildings:buildings.map(function(b) {return b.name;}),units:UNIT_OPTIONS,today:reservationDateKey_(new Date())
   };
 }
@@ -86,7 +109,7 @@ function letterDraftModel_(p,officials,buildings) {
   if (!Object.prototype.hasOwnProperty.call(LETTER_DRAFT_TYPES,p.type) ||
       !Object.prototype.hasOwnProperty.call(LETTER_DRAFT_URGENCY,p.urgency)) throw Error('Jenis atau sifat surat tidak valid.');
   var signer=officials.find(function(o) {return o.id===p.signer;});
-  if (!signer || (p.behalf && signer.code==='R')) throw Error('Penandatangan tidak valid.');
+  if (!signer || !signer.name || !signer.short || (p.behalf && signer.code==='R')) throw Error('Penandatangan tidak valid.');
   var classification=kind[1] || p.classification;
   if (!kind[1] && !LETTER_DRAFT_CLASSIFICATIONS.some(function(c) {return c[0]===classification;})) throw Error('Pilih kode klasifikasi.');
   var date=letterDraftDate_(p.date,false);
@@ -97,7 +120,7 @@ function letterDraftModel_(p,officials,buildings) {
     return value;
   }
   var t=p.type, free=t==='SD'||t==='KHUSUS';
-  var subject=free?field('subject','Perihal',300,true):kind[2], target=['Rektor'], body='';
+  var subject=free?field('subject','Perihal',300,true):kind[2], target=[], body='';
   var eventDate='',time='',place='',participants='',vehicles='',contact='',activity='',people=[];
   if (['UNDANGAN','ST_SPD','GEDUNG','KENDARAAN'].indexOf(t)>=0) {
     eventDate=letterDraftDate_(p.start,true);
@@ -112,19 +135,27 @@ function letterDraftModel_(p,officials,buildings) {
   if (t==='SD') target=[field('target','Tujuan surat',300,true).replace(/\r\n?/g,'\n')];
   if (t==='KHUSUS'||t==='UNDANGAN') {
     if (!Array.isArray(p.recipients)||p.recipients.length>30) throw Error('Daftar penerima tidak valid.');
-    target=p.recipients.map(function(x) {return letterDraftText_(x,150,'Penerima');}).filter(Boolean)
+    target=p.recipients.map(function(x) {
+      if(typeof x==='string') return letterDraftText_(x,150,'Penerima');
+      var official=x && officials.find(function(o) {return o.id===x.id;});
+      if(!official) throw Error('Jabatan penerima telah berubah di MASTER PEJABAT. Muat ulang SIDDIQ dan pilih kembali.');
+      return official.title;
+    }).filter(Boolean)
       .filter(function(x,i,a) {return a.findIndex(function(s) {return s.toLowerCase()===x.toLowerCase();})===i;});
-    if (target.indexOf('Seluruh Wakil Rektor')>=0) target=target.filter(function(x) {return !/^Wakil Rektor Bidang /.test(x);});
+    if (target.some(function(x) {return /^Seluruh Wakil Rektor$/i.test(x);})) {
+      target=target.filter(function(x) {return !/^(?:(?:Plt|Plh|Pj)\.?\s+)?Wakil Rektor\b/i.test(x);});
+    }
     if (!target.length) throw Error('Tambahkan penerima.');
   }
   if (t==='GEDUNG') {
     var building=buildings.find(function(b) {return b.name===p.building;});
     if (!building) throw Error('Pilih gedung yang memiliki tujuan surat.');
     place=building.name;
-    target=[building.recipient];
+    target=[letterDraftRoutingTitle_(officials,building.recipient)];
     subject+=' '+place.replace(/^Gedung /i,'');
   }
-  if (t==='KENDARAAN') target=['Kepala Bagian Umum Kantor Pusat UIN Sunan Ampel Surabaya'];
+  if (t==='ST_SPD'||t==='SK') target=[letterDraftRoutingTitle_(officials,'R')];
+  if (t==='KENDARAAN') target=[letterDraftRoutingTitle_(officials,'BU1')+' Kantor Pusat UIN Sunan Ampel Surabaya'];
   if (t==='GEDUNG'||t==='KENDARAAN') {
     participants=field('participants','Jumlah peserta',5,t==='GEDUNG');
     if (t==='KENDARAAN') vehicles=field('vehicles','Jumlah kendaraan',5,false);
@@ -216,8 +247,9 @@ function letterDraftRender_(doc,m) {
   set(layout[1],signing);
   set(layout[2],name);
   if (type==='SK') {
+    set(3,m.target[0],true);
     remove(17,17);
-    set(10,'Disampaikan dengan hormat, dalam rangka '+m.activity+', maka kami mengajukan permohonan kepada Bapak Rektor untuk berkenan menerbitkan SK pada kegiatan tersebut.');
+    set(10,'Disampaikan dengan hormat, dalam rangka '+m.activity+', maka kami mengajukan permohonan kepada Bapak '+m.target[0]+' untuk berkenan menerbitkan SK pada kegiatan tersebut.');
   }
   if (type==='KHUSUS') {
     recipients(3,4);
@@ -232,7 +264,8 @@ function letterDraftRender_(doc,m) {
     set(18,['\tTempat\t: '+m.place,'\tAcara\t\t: '+m.agenda].concat(m.theme?['\tTema\t\t: '+m.theme]:[],m.note?['\tCatatan\t: '+m.note]:[]).join('\n'));
   }
   if (type==='ST_SPD') {
-    set(10,'Dalam rangka '+m.activity+', mohon perkenaan Bapak Rektor untuk memberikan izin dan menugaskan nama yang tersebut di bawah ini:');
+    set(3,m.target[0],true);
+    set(10,'Dalam rangka '+m.activity+', mohon perkenaan Bapak '+m.target[0]+' untuk memberikan izin dan menugaskan nama yang tersebut di bawah ini:');
     var existing=children[11].asTable();
     if(m.people.length===1) {
       m.people[0].forEach(function(value,i) {existing.getCell(i,1).editAsText().setText(': '+value);});
@@ -245,7 +278,7 @@ function letterDraftRender_(doc,m) {
     set(12,'Hari dan tanggal penugasan '+m.eventDate+' di '+m.place+'.');
   }
   if(type==='GEDUNG'||type==='KENDARAAN') {
-    if(type==='GEDUNG') set(3,m.target[0],true);
+    set(3,type==='GEDUNG'?m.target[0]:m.target[0].replace(/ UIN Sunan Ampel Surabaya$/,''),true);
     var resource=type==='GEDUNG'?m.place:'kendaraan dinas';
     var lines=['Disampaikan dengan hormat, dalam rangka '+m.activity+', bersama ini kami bermaksud mengajukan permohonan peminjaman '+resource+' pada:',
       '', 'Hari/Tanggal\t\t: '+m.eventDate,'Pukul\t\t\t: '+m.time.replace(/\s*WIB$/i,'')+' WIB','Tempat\t\t: '+m.place];
