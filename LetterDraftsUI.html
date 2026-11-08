@@ -18,6 +18,9 @@
 #draftDialog #draftClose { flex:none; border-radius:999px; }
 #draftDialog button.dg-primary { color:white; background:#04361b; border-color:#04361b; }
 #draftDialog .dg-person { border:1px solid #cbded1; padding:8px; margin:10px 0; }
+#draftDialog .dg-suggestions { display:grid; gap:4px; max-height:220px; overflow:auto; margin:4px 0; }
+#draftDialog .dg-suggestions button { text-align:left; font-weight:400; }
+#draftDialog .dg-search-status { font-size:13px; margin:4px 0; }
 #draftStatus { margin:12px 0; overflow-wrap:anywhere; }
 #draftStatus:empty { display:none; }
 #draftGuide { margin:12px 0; font-size:14px; }
@@ -117,6 +120,46 @@
     const row=document.createElement('div');
     row.className='dg-person';
     [['Nama','personName'],['NIP/NIPPPK (opsional)','personNip'],['Pangkat/golongan','personRank'],['Jabatan','personJob']].forEach(([label,name])=>control(row,name,label));
+    const nameInput=row.querySelector('[name="personName"]');
+    nameInput.placeholder='Ketik minimal 2 huruf untuk mencari, atau isi manual';
+    nameInput.autocomplete='off';
+    const hint=document.createElement('p'), suggestions=document.createElement('div');
+    hint.className='dg-search-status'; hint.setAttribute('role','status');
+    suggestions.className='dg-suggestions';
+    nameInput.parentElement.after(hint,suggestions);
+    let timer, sequence=0;
+    nameInput.addEventListener('input',()=>{
+      clearTimeout(timer);
+      const current=++sequence, query=nameInput.value.trim();
+      suggestions.replaceChildren();
+      hint.textContent=query.length<2?'Isi manual atau cari nama dari master pegawai.':'Mencari pegawai…';
+      if(query.length<2) return;
+      timer=setTimeout(()=>{
+        if(!row.isConnected||current!==sequence||fields.disabled) return;
+        google.script.run.withSuccessHandler(result=>{
+          if(!row.isConnected||current!==sequence||fields.disabled) return;
+          hint.textContent=result.items.length?(result.more?'Tampilkan 20 hasil. Perjelas nama untuk hasil lainnya.':'Pilih pegawai; semua isian tetap dapat diedit.'):'Nama tidak ditemukan. Silakan isi manual.';
+          result.items.forEach(employee=>{
+            const choice=document.createElement('button'); choice.type='button';
+            choice.textContent=employee.name+' — '+employee.title+(employee.nip?' — '+employee.nip:'');
+            choice.onclick=()=>{
+              ++sequence; clearTimeout(timer);
+              ['personName','personNip','personRank','personJob'].forEach((field,i)=>{
+                row.querySelector('[name="'+field+'"]').value=[employee.name,employee.nip,employee.rank,employee.title][i];
+              });
+              suggestions.replaceChildren(); hint.textContent='Data dari master terisi. Anda dapat mengeditnya.';
+            };
+            suggestions.append(choice);
+          });
+        }).withFailureHandler(()=>{
+          if(row.isConnected&&current===sequence) hint.textContent='Pencarian belum tersedia. Silakan coba lagi atau isi manual.';
+        }).searchLetterDraftEmployees(query);
+      },500);
+    });
+    nameInput.addEventListener('keydown',event=>{
+      if(event.key==='Escape') { ++sequence; clearTimeout(timer); suggestions.replaceChildren(); hint.textContent=''; event.stopPropagation(); }
+      if(event.key==='ArrowDown'&&suggestions.firstElementChild) { event.preventDefault(); suggestions.firstElementChild.focus(); }
+    });
     const remove=document.createElement('button');
     remove.type='button'; remove.textContent='Hapus personel'; remove.onclick=()=>row.remove();
     row.append(remove); get('draftPeople').append(row);

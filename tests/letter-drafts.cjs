@@ -31,7 +31,9 @@ assert.equal(model({type:'SK',activity:'Kegiatan'},[signer,newRector]).target[0]
 assert.equal(model({type:'KENDARAAN',...event,contactName:'Uji',contactNumber:'0800'},[signer,{...general,title:'Plt. Kepala Bagian Umum'}]).target[0],
   'Plt. Kepala Bagian Umum Kantor Pusat UIN Sunan Ampel Surabaya');
 assert.equal(model({type:'ST_SPD',...event,people:[['Nama','','','Jabatan'],['Nama II','','','Jabatan II']]}).people.length,2);
-assert.throws(()=>model({type:'ST_SPD',...event,people:[['Nama','123','','Jabatan']]}),/18 digit/);
+for (const nip of ['', '-', '123', '001234567890123456']) {
+  assert.equal(model({type:'ST_SPD',...event,people:[['Nama',nip,'','Jabatan']]}).people[0][1],nip);
+}
 assert.equal(model({type:'GEDUNG',...event,building:'Gedung Uji',participants:'20',contactName:'Uji',contactNumber:'0800'}).target[0],'Rektor');
 assert.throws(()=>model({type:'GEDUNG',...event,building:'Gedung lain'}),/Pilih gedung/);
 assert.equal(model({type:'KENDARAAN',...event,contactName:'Uji',contactNumber:'0800'}).vehicles,'');
@@ -182,3 +184,31 @@ assert.equal(ctx.createLetterDraft(base,orphanToken,false).url,'https://docs.goo
 assert.equal(copies,beforeCopies);
 assert.throws(()=>ctx.createLetterDraft(base,'------------------------------------',false),/Identitas/);
 console.log('PASS completed orphan recovery and canonical UUID validation.');
+
+// Employee search: fresh source reads, bounded results, exact string IDs and no NPWP.
+const employeeCtx=vm.createContext({console});
+vm.runInContext(fs.readFileSync('LetterDrafts.js','utf8'),employeeCtx);
+let employeeRows=[['NIP/NIPPPK','Nama'],['',''],['001234567890123456','Nama Contoh']];
+let employeeRoles=[['Pangkat/Gol','Jabatan'],['',''],['IX','Arsiparis']];
+const ranges=[];
+employeeCtx.letterDraftGuard_=()=>({});
+employeeCtx.letterDraftMaster_=()=>({getSheetByName:name=>{
+  assert.equal(name,'Master_Pegawai');
+  return {getLastRow:()=>employeeRows.length,getRange:(r,c,n,w)=>{
+    ranges.push([r,c,n,w]); assert.equal(w,2); assert.ok(c===1||c===4);
+    return {getDisplayValues:()=>c===1?employeeRows:employeeRoles};
+  }};
+}});
+assert.equal(employeeCtx.searchLetterDraftEmployees('n').items.length,0);
+assert.equal(ranges.length,0);
+let found=employeeCtx.searchLetterDraftEmployees('CONTOH nama');
+assert.equal(found.items[0].nip,'001234567890123456');
+assert.equal(found.items[0].title,'Arsiparis');
+assert.equal(Object.keys(found.items[0]).length,4);
+employeeRoles[2][1]='Jabatan diperbarui';
+assert.equal(employeeCtx.searchLetterDraftEmployees('contoh').items[0].title,'Jabatan diperbarui');
+assert.equal(employeeCtx.searchLetterDraftEmployees('tidak ditemukan').items.length,0);
+for(let i=0;i<25;i++) {employeeRows.push(['-','Nama '+i]);employeeRoles.push(['IX','Staf']);}
+found=employeeCtx.searchLetterDraftEmployees('nama');
+assert.equal(found.items.length,20); assert.equal(found.more,true);
+console.log('PASS employee search, fresh updates, optional identifiers, result cap and field minimization.');
