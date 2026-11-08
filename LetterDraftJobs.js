@@ -2,19 +2,15 @@
 // Construct outside the job lock; get/set are called with an active per-token lease.
 function letterDraftJobStore_(token) {
   var book=finalLedgerBook_(), props=PropertiesService.getScriptProperties();
-  var sheet=book.getSheetByName('GENERATOR_JOBS');
-  if(!sheet) sheet=letterDraftLock_(function() {
-    // The pre-lock Spreadsheet object can cache an absent sheet. A property
-    // checkpoint and a fresh handle avoid competing first-use insertSheet calls.
-    var id=props.getProperty('LETTER_DRAFT_JOB_SHEET_ID');
-    var fresh=SpreadsheetApp.openById(book.getId());
-    var s=id?fresh.getSheetById(Number(id)):fresh.getSheetByName('GENERATOR_JOBS');
+  // Do not read sheet metadata before this lock. Apps Script caches an absent
+  // sheet in a workbook handle, even if openById is called again after waiting.
+  var sheet=letterDraftLock_(function() {
+    var s=book.getSheetByName('GENERATOR_JOBS');
     if(!s) {
-      s=fresh.insertSheet('GENERATOR_JOBS');
+      s=book.insertSheet('GENERATOR_JOBS');
       s.getRange(1,1,1,3).setValues([['Token','Status JSON','Diperbarui']]);
       SpreadsheetApp.flush();
     }
-    props.setProperty('LETTER_DRAFT_JOB_SHEET_ID',String(s.getSheetId()));
     return s;
   });
   var row=0, legacyKey='LETTER_DRAFT_'+token;

@@ -1067,9 +1067,6 @@ function neutralizeSheetFormula_(value) {
 
 function sanitizeFilePart_(value, maxLength) {
   return String(value || '')
-    .replace(/\.[^.]+$/, function(extension) {
-      return extension;
-    })
     .replace(/[\\/:*?"<>|\u0000-\u001F]/g, '-')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
