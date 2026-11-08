@@ -19,34 +19,52 @@ var LETTER_DRAFT_RECIPIENTS = [
   'Dosen', 'Tenaga Kependidikan'
 ];
 function letterDraftGuard_() {
-  if (ScriptApp.getScriptId() !== '1voCWP8UrNRyXNgCZPUaFkgmbZEKOzOZ1TodxLLuMb_kWT9BtxB5HiFlz') {
-    throw Error('Generator surat tersedia di web app uji.');
+  var scriptId=ScriptApp.getScriptId();
+  if (scriptId==='1voCWP8UrNRyXNgCZPUaFkgmbZEKOzOZ1TodxLLuMb_kWT9BtxB5HiFlz' &&
+      typeof bindChunkStaging_==='function') {
+    bindChunkStaging_();
+    return {staging:true,masterId:'1UR8puYkKdOKyMEqBbXYgBei1hNCvPSoMjGFkxTSgNhM'};
   }
-  bindChunkStaging_();
+  var props=PropertiesService.getScriptProperties();
+  if (scriptId!=='1a105dbVLfTVRwogvyvA4TIk5QmZnBLmUVnk1SoUxCBU_KEHmg28tv29_' ||
+      props.getProperty('LETTER_DRAFT_ENABLED')==='0') {
+    throw Error('Generator surat sedang dipersiapkan.');
+  }
+  return {staging:false,masterId:'1UR8puYkKdOKyMEqBbXYgBei1hNCvPSoMjGFkxTSgNhM'};
 }
-function letterDraftOfficials_() {
-  var book = SpreadsheetApp.openById('1UR8puYkKdOKyMEqBbXYgBei1hNCvPSoMjGFkxTSgNhM');
-  var sheet = book.getSheetByName('MASTER PEJABAT');
-  return sheet.getRange(4,1,Math.max(1,sheet.getLastRow()-3),5).getDisplayValues().filter(function(r) {
-    return r[1] && r[3] && r[4];
-  }).map(function(r) {
-    var id = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, r[2]+'|'+r[3]));
-    return {id:id,code:r[0].trim(),name:r[1].trim(),nip:r[2].trim(),title:r[3].trim(),short:r[0]==='R2'&&r[4]==='Ali Musthofa'?'Ali Mustofa':r[4].trim()};
+function letterDraftOfficials_(mode) {
+  var sheet=SpreadsheetApp.openById(mode.masterId).getSheetByName('MASTER PEJABAT');
+  if (!sheet || sheet.getLastRow()<4) throw Error('Master pejabat belum tersedia. Hubungi Bagian Umum.');
+  var seen=new Set();
+  var officials=sheet.getRange(4,1,sheet.getLastRow()-3,5).getDisplayValues().map(function(row) {
+    return row.map(function(value) {return value.trim();});
+  }).filter(function(r) {return r[1] && r[3] && r[4];}).map(function(r) {
+    var id=Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,JSON.stringify([r[1],r[3],r[0]])));
+    if(seen.has(id)) throw Error('Master pejabat berisi baris ganda. Hubungi Bagian Umum.');
+    seen.add(id);
+    return {id:id,code:r[0],name:r[1],nip:r[2],title:r[3],short:r[0]==='R2'&&r[4]==='Ali Musthofa'?'Ali Mustofa':r[4]};
   });
+  if (!officials.length) throw Error('Master pejabat belum tersedia. Hubungi Bagian Umum.');
+  return officials;
 }
-function letterDraftBuildings_() {
-  var sheet = getSpreadsheet_().getSheetByName('MASTER GEDUNG');
-  if (!sheet || sheet.getLastRow()<2) return [{name:'Gedung Uji A (data buatan)',recipient:'Rektor'}];
-  return sheet.getRange(2,1,sheet.getLastRow()-1,2).getDisplayValues().filter(function(r) {return r[0] && r[1];})
-    .map(function(r) {return {name:r[0],recipient:r[1]};});
+function letterDraftBuildings_(mode) {
+  var sheet=SpreadsheetApp.openById(mode.masterId).getSheetByName('MASTER GEDUNG');
+  if (!sheet || sheet.getLastRow()<2) {
+    return mode.staging?[{name:'Gedung Uji A (data buatan)',recipient:'Rektor'}]:[];
+  }
+  return sheet.getRange(2,1,sheet.getLastRow()-1,2).getDisplayValues().map(function(row) {
+    return {name:row[0].trim(),recipient:row[1].trim()};
+  }).filter(function(row) {return row.name && row.recipient;});
 }
 function getLetterDraftOptions() {
-  letterDraftGuard_();
+  var mode=letterDraftGuard_(), buildings=letterDraftBuildings_(mode);
   return {
-    officials:letterDraftOfficials_().map(function(o) {return {id:o.id, label:o.short+' — '+o.title, rector:o.code==='R'};}),
-    types:Object.keys(LETTER_DRAFT_TYPES).map(function(k) {return {id:k,label:LETTER_DRAFT_TYPES[k][0],code:LETTER_DRAFT_TYPES[k][1]};}),
-    urgency:LETTER_DRAFT_URGENCY, classifications:LETTER_DRAFT_CLASSIFICATIONS, recipients:LETTER_DRAFT_RECIPIENTS,
-    buildings:letterDraftBuildings_().map(function(b) {return b.name;}), units:UNIT_OPTIONS, today:reservationDateKey_(new Date())
+    staging:mode.staging,
+    officials:letterDraftOfficials_(mode).map(function(o) {return {id:o.id,label:o.short+' — '+o.title,rector:o.code==='R'};}),
+    types:Object.keys(LETTER_DRAFT_TYPES).filter(function(k) {return k!=='GEDUNG'||buildings.length;})
+      .map(function(k) {return {id:k,label:LETTER_DRAFT_TYPES[k][0],code:LETTER_DRAFT_TYPES[k][1]};}),
+    urgency:LETTER_DRAFT_URGENCY,classifications:LETTER_DRAFT_CLASSIFICATIONS,recipients:LETTER_DRAFT_RECIPIENTS,
+    buildings:buildings.map(function(b) {return b.name;}),units:UNIT_OPTIONS,today:reservationDateKey_(new Date())
   };
 }
 function letterDraftText_(value,max,label) {
@@ -91,7 +109,7 @@ function letterDraftModel_(p,officials,buildings) {
     if (t!=='GEDUNG') place=field('place','Tempat kegiatan',250,true);
   }
   if (free) body=field('body','Isi surat',5000,true);
-  if (t==='SD') target=[field('target','Tujuan surat',250,true)];
+  if (t==='SD') target=[field('target','Tujuan surat',300,true).replace(/\r\n?/g,'\n')];
   if (t==='KHUSUS'||t==='UNDANGAN') {
     if (!Array.isArray(p.recipients)||p.recipients.length>30) throw Error('Daftar penerima tidak valid.');
     target=p.recipients.map(function(x) {return letterDraftText_(x,150,'Penerima');}).filter(Boolean)
@@ -131,16 +149,16 @@ function letterDraftModel_(p,officials,buildings) {
     note:t==='UNDANGAN'?field('note','Catatan',500,false):''};
 }
 function previewLetterDraft(p) {
-  letterDraftGuard_();
-  var m=letterDraftModel_(p,letterDraftOfficials_(),letterDraftBuildings_());
+  var mode=letterDraftGuard_();
+  var m=letterDraftModel_(p,letterDraftOfficials_(mode),letterDraftBuildings_(mode));
   return {code:m.code,date:m.date,subject:m.subject,to:m.target,signer:m.signer.title,from:m.type==='SD'?m.signer.name:m.signer.short};
 }
 function letterDraftRender_(doc,m) {
   var body=doc.getBody();
   var children=Array.from({length:body.getNumChildren()},function(_,i) {return body.getChild(i);});
   function para(i) {return children[i].asParagraph();}
-  function set(i,value,afterColon) {
-    var p=para(i), t=p.editAsText(), old=t.getText(), start=0;
+  function write(p,value,afterColon) {
+    var t=p.editAsText(), old=t.getText(), start=0;
     if (afterColon) {
       var label=old.match(/^[^:]+:\s*/);
       if (!label) throw Error('Label template tidak ditemukan.');
@@ -153,6 +171,7 @@ function letterDraftRender_(doc,m) {
       if (attrs) t.setAttributes(start,start+value.length-1,attrs);
     }
   }
+  function set(i,value,afterColon) {write(para(i),value,afterColon);}
   function remove(first,last) {for(var i=last;i>=first;i--) body.removeChild(children[i]);}
   function recipients(first,last) {
     var many=m.target.length>1;
@@ -171,8 +190,16 @@ function letterDraftRender_(doc,m) {
   if (type==='SD') {
     set(0,m.date);
     set(3,m.subject,true);
-    set(7,m.target[0]);
-    remove(8,8);
+    var address=m.target[0].split('\n');
+    set(7,address[0]);
+    if(address.length===1) remove(8,8);
+    else {
+      var addressStyle=para(8).copy(), addressIndex=body.getChildIndex(children[8]);
+      set(8,address[1]);
+      address.slice(2).forEach(function(line,i) {
+        write(body.insertParagraph(addressIndex+i+1,addressStyle.copy()),line);
+      });
+    }
     set(12,m.body);
     remove(13,16);
     set(22,signing+',');
@@ -238,11 +265,52 @@ function letterDraftPayloadKey_(payload, withNumber) {
   var fields=Object.keys(payload||{}).sort().map(function(key) {return [key,payload[key]];});
   return JSON.stringify([fields,!!withNumber]);
 }
+function letterDraftRequest_(request,applicant,unit,token,date) {
+  var result=Object.assign({},request,{
+    applicantName:cleanText_(applicant,150),unit:unit,token:token,requestToken:token
+  });
+  [result.subject,result.from,result.to,result.applicantName].forEach(function(value) {
+    if (/^\s*=/.test(value||'')) throw Error('Isian register tidak boleh dimulai dengan tanda sama dengan.');
+  });
+  validatePublicFields_(result);
+  if(date>reservationDateKey_(new Date())) throw Error('Tanggal surat mendatang belum dapat diajukan.');
+  return result;
+}
+function letterDraftNumberLine_(doc,code) {
+  var lines=doc.getBody().getParagraphs().filter(function(p) {
+    var text=p.getText(), match=/^Nomor\s*:\s*(.*)$/i.exec(text);
+    return match && match[1].trim()===code;
+  });
+  return lines.length===1?lines[0]:null;
+}
+function letterDraftNumber_(job,file,request,date,token,save) {
+  if(!job.archived) {
+    var pdf=file.getAs(MimeType.PDF).setName('Draft Generator Surat.pdf');
+    var today=reservationDateKey_(new Date());
+    var reservation=reserveRequest(Object.assign({},request,{
+      letterDate:date===today?'':date,draftName:pdf.getName(),draftSize:pdf.getBytes().length
+    }));
+    job.number=reservation.number;
+    save();
+    if(!reservation.uploadComplete) uploadDraft({reservedRequestId:reservation.requestId,requestToken:token,draft:pdf});
+    job.archived=true;
+    save();
+  }
+  var code=job.code.replace(LETTER_DRAFT_PENDING,String(job.number));
+  var doc=DocumentApp.openById(job.docId), line=letterDraftNumberLine_(doc,job.code);
+  if(line) {
+    line.replaceText('\\[BELUM BERNOMOR\\]',String(job.number));
+  }
+  if(!letterDraftNumberLine_(doc,code)) throw Error('Pulihkan baris Nomor pada Google Docs sebelum melanjutkan.');
+  doc.saveAndClose();
+  return code;
+}
 function createLetterDraft(p, token, withNumber) {
-  letterDraftGuard_();
+  var mode=letterDraftGuard_();
   var docsAuth=ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL,['https://www.googleapis.com/auth/documents']);
   if (docsAuth.getAuthorizationStatus()===ScriptApp.AuthorizationStatus.REQUIRED) {
-    return {authorizationUrl:docsAuth.getAuthorizationUrl()};
+    if (mode.staging) return {authorizationUrl:docsAuth.getAuthorizationUrl()};
+    return {invalid:true,message:'Izin Google Docs belum aktif. Hubungi Bagian Umum.'};
   }
   if (!/^[0-9a-f-]{36}$/i.test(token||'')) throw Error('Identitas proses tidak valid.');
   var props=PropertiesService.getScriptProperties(), key='LETTER_DRAFT_'+token;
@@ -261,19 +329,16 @@ function createLetterDraft(p, token, withNumber) {
   function save(){props.setProperty(key,JSON.stringify(job));}
   var readyToWrite=false;
   try {
-    var m=letterDraftModel_(p,letterDraftOfficials_(),letterDraftBuildings_());
-    if(withNumber) {
-      [m.subject,m.target.join(', '),p.applicant].forEach(function(value) {
-        if (/^\s*=/.test(value||'')) throw Error('Isian register tidak boleh dimulai dengan tanda sama dengan.');
-      });
-      validatePublicFields_({documentType:m.type==='SD'?'Surat Dinas':'Nota Dinas',subject:m.subject,
-        from:m.type==='SD'?m.signer.name:m.signer.short,to:m.target.join(', '),applicantName:cleanText_(p.applicant,150),unit:p.unit,token:token});
-      if(p.date>reservationDateKey_(new Date())) throw Error('Tanggal surat mendatang belum dapat diajukan.');
-    }
-    readyToWrite=true;
-    var folder=getOrCreateFolder_(DriveApp.getFolderById(APP.ROOT_FOLDER_ID),'Draft Generator Surat Uji');
     if(!job.docId) {
-      var file=DriveApp.getFileById(m.kind[3]).makeCopy('UJI — '+m.subject+' — '+token,folder);
+      var m=letterDraftModel_(p,letterDraftOfficials_(mode),letterDraftBuildings_(mode));
+      if(m.type==='SD' && !/^\d{18}$/.test(m.signer.nip)) throw Error('NIP penandatangan belum valid. Hubungi Bagian Umum.');
+      var request={documentType:m.type==='SD'?'Surat Dinas':'Nota Dinas',subject:m.subject,
+        from:m.type==='SD'?m.signer.name:m.signer.short,to:m.target.join(', ')};
+      job.request=withNumber?letterDraftRequest_(request,p.applicant,p.unit,token,m.letterDate):request;
+      if(!withNumber) job.previewDate=m.letterDate;
+      readyToWrite=true;
+      var folder=finalPrivateChild_(finalRoot_(),mode.staging?'Draft Generator Surat Uji':'Draft dari Template Resmi');
+      var file=DriveApp.getFileById(m.kind[3]).makeCopy((mode.staging?'UJI — ':'Draft — ')+m.subject+' — '+token,folder);
       try {
         var doc=DocumentApp.openById(file.getId());
         letterDraftRender_(doc,m);
@@ -286,23 +351,11 @@ function createLetterDraft(p, token, withNumber) {
         throw e;
       }
     }
-    if(withNumber && !job.archived) {
-      var pdf=DriveApp.getFileById(job.docId).getAs(MimeType.PDF).setName('Draft Generator Surat.pdf');
-      var reservation=reserveRequest({documentType:m.type==='SD'?'Surat Dinas':'Nota Dinas',subject:m.subject,
-        from:m.type==='SD'?m.signer.name:m.signer.short,to:m.target.join(', '),applicantName:p.applicant,unit:p.unit,
-        requestToken:token,letterDate:p.date===reservationDateKey_(new Date())?'':p.date,draftName:pdf.getName(),draftSize:pdf.getBytes().length});
-      job.number=reservation.number;
-      save();
-      if(!reservation.uploadComplete) uploadDraft({reservedRequestId:reservation.requestId,requestToken:token,draft:pdf});
-      job.archived=true;
-      save();
-    }
-    if(withNumber) {
-      var output=DocumentApp.openById(job.docId), numberLine=output.getBody().getChild(1).asParagraph();
-      numberLine.replaceText('\\[BELUM BERNOMOR\\]',String(job.number));
-      output.saveAndClose();
-    }
-    job.result={url:'https://docs.google.com/document/d/'+job.docId+'/edit',code:job.code.replace(LETTER_DRAFT_PENDING,withNumber?String(job.number):LETTER_DRAFT_PENDING)};
+    readyToWrite=true;
+    var outputFile=DriveApp.getFileById(job.docId);
+    var code=withNumber?letterDraftNumber_(job,outputFile,job.request,p.date,token,save):job.code;
+    if(!mode.staging) letterDraftShare_(outputFile);
+    job.result={url:'https://docs.google.com/document/d/'+job.docId+'/edit',code:code};
     job.done=true;
     return job.result;
   } catch(e) {
@@ -318,8 +371,83 @@ function createLetterDraft(p, token, withNumber) {
     save();
   }
 }
+function numberLetterDraft(token,applicant,unit) {
+  letterDraftGuard_();
+  if (!/^[0-9a-f-]{36}$/i.test(token||'')) throw Error('Identitas proses tidak valid.');
+  var props=PropertiesService.getScriptProperties(), key='LETTER_DRAFT_'+token;
+  var job=letterDraftLock_(function() {
+    var j=JSON.parse(props.getProperty(key)||'{}');
+    if(!j.done || !j.previewDate) throw Error('Buka pratinjau Google Docs terlebih dahulu.');
+    if(j.numberedResult) return j;
+    if(j.until>Date.now()) throw Error('Nomor sedang diproses. Coba lanjutkan beberapa saat lagi.');
+    j.until=Date.now()+420000;
+    props.setProperty(key,JSON.stringify(j));
+    return j;
+  });
+  if(job.numberedResult) return job.numberedResult;
+  function save(){props.setProperty(key,JSON.stringify(job));}
+  try {
+    if(!job.submission) {
+      var request=letterDraftRequest_(job.request,applicant,unit,token,job.previewDate);
+      if(!letterDraftNumberLine_(DocumentApp.openById(job.docId),job.code)) {
+        throw Error('Pulihkan baris Nomor pada Google Docs sebelum mengajukan nomor.');
+      }
+      job.submission=request;
+      save();
+    }
+    var file=DriveApp.getFileById(job.docId);
+    var code=letterDraftNumber_(job,file,job.submission,job.previewDate,token,save);
+    job.numberedResult={url:job.result.url,code:code};
+    return job.numberedResult;
+  } catch(e) {
+    console.error('Pengajuan nomor dari pratinjau: '+e.message);
+    if(job.number) throw Error('Nomor '+job.number+' telah terbit. '+toUserSafeError_(e));
+    if(/^Nomor cadangan tidak tersedia/.test(e.message)) {
+      delete job.submission;
+      return {noSlot:true,message:e.message};
+    }
+    if(!job.submission) return {invalid:true,message:toUserSafeError_(e)};
+    throw Error(toUserSafeError_(e));
+  } finally {
+    job.until=0;
+    save();
+  }
+}
 function includeLetterDrafts_() {
   try {letterDraftGuard_();} catch(e) {return '';}
-  return '<aside class="letter-help"><div class="letter-help-links"><button type="button" id="draftGeneratorOpen" aria-haspopup="dialog">Buat surat dengan template resmi</button></div></aside>'+
+  return '<aside class="letter-help"><div class="letter-help-links"><button type="button" id="draftGeneratorOpen" aria-haspopup="dialog" aria-controls="draftDialog">Generator Surat Dinas/Nota Dinas Resmi</button></div></aside>'+
     HtmlService.createHtmlOutputFromFile('LetterDraftsUI').getContent();
+}
+
+function letterDraftShare_(file) {
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK,DriveApp.Permission.EDIT);
+  if(file.getSharingAccess()!==DriveApp.Access.ANYONE_WITH_LINK ||
+     file.getSharingPermission()!==DriveApp.Permission.EDIT) {
+    throw Error('Tautan edit belum tersedia. Hubungi Bagian Umum.');
+  }
+}
+
+// Run from the Apps Script editor as the owner before updating the live deployment.
+function checkLetterDraftProduction_() {
+  var mode=letterDraftGuard_();
+  if(mode.staging || getDetectedEmail_().toLowerCase()!==APP.ADMIN_EMAIL.toLowerCase()) {
+    throw Error('Pemeriksaan ini khusus pengelola SIDDIQ produksi.');
+  }
+  var officials=letterDraftOfficials_(mode), buildings=letterDraftBuildings_(mode);
+  Object.keys(LETTER_DRAFT_TYPES).forEach(function(kind) {
+    var id=LETTER_DRAFT_TYPES[kind][3];
+    DocumentApp.openById(id).getBody().getChild(1).asParagraph();
+  });
+  var folder=finalPrivateChild_(finalRoot_(),'Draft dari Template Resmi');
+  var doc=DocumentApp.create('SIDDIQ — Pemeriksaan akses dokumen kosong');
+  var file=DriveApp.getFileById(doc.getId());
+  try {
+    doc.saveAndClose();
+    file.moveTo(folder);
+    letterDraftShare_(file);
+  } finally {
+    try {file.setSharing(DriveApp.Access.PRIVATE,DriveApp.Permission.VIEW);}
+    finally {file.setTrashed(true);}
+  }
+  console.log('SIDDIQ SIAP RILIS: '+officials.length+' pejabat, '+buildings.length+' gedung, 7 template, izin edit terverifikasi.');
 }

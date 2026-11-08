@@ -1,20 +1,37 @@
 <style>
-#draftDialog { width:min(690px,calc(100% - 24px)); max-height:90dvh; padding:20px; overflow:auto; color:#203629; }
+#draftDialog { width:min(690px,calc(100% - 24px)); max-height:90dvh; padding:20px; overflow:auto; color:#203629; border:1px solid #b8c7be; border-radius:16px; box-shadow:0 18px 60px #172c2244; }
 #draftDialog::backdrop { background:#172c22aa; }
+#draftDialog .dg-header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+#draftTitle { margin:0; font-size:clamp(1.05rem, 3vw, 1.4rem); }
 #draftDialog label { display:block; font-size:14px; margin:10px 0; }
-#draftDialog input, #draftDialog select, #draftDialog textarea { display:block; width:100%; margin-top:4px; min-height:38px; }
+#draftDialog input, #draftDialog select, #draftDialog textarea {
+  display:block; box-sizing:border-box; width:100%; margin-top:4px; min-height:44px;
+  padding:10px 12px; border:1px solid #b8c7be; border-radius:8px; background:#fff;
+  color:#18231d; font:400 16px/1.4 Arial, Helvetica, sans-serif;
+}
+#draftDialog input[type="date"]::-webkit-datetime-edit { font:inherit; }
+#draftFields, #draftApplicant { min-width:0; margin:0 0 12px; padding:12px; border:1px solid #d9e2dc; border-radius:10px; }
+#draftDialog textarea[name="target"] { min-height:7em; }
 #draftDialog .dg-row { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
-#draftDialog button { padding:8px 12px; cursor:pointer; }
-#draftDialog button:disabled { opacity:.6; cursor:wait; }
+#draftDialog button { padding:8px 14px; border:1px solid #b8c7be; border-radius:9px; background:#f4f7f5; color:#04361b; font:600 14px/1.35 Arial, Helvetica, sans-serif; cursor:pointer; }
+#draftDialog button:disabled { opacity:.55; cursor:default; }
+#draftDialog #draftClose { flex:none; border-radius:999px; }
+#draftDialog button.dg-primary { color:white; background:#04361b; border-color:#04361b; }
 #draftDialog .dg-person { border:1px solid #cbded1; padding:8px; margin:10px 0; }
-#draftDialog .dg-preview { padding:10px; background:#f0f7f2; white-space:pre-wrap; overflow-wrap:anywhere; }
+#draftStatus { margin:12px 0; overflow-wrap:anywhere; }
+#draftStatus:empty { display:none; }
+#draftGuide { margin:12px 0; font-size:14px; }
+#draftLoading { position:fixed; inset:0; z-index:2; display:grid; place-items:center; background:#172c2273; }
+#draftLoading .dg-loading-card { width:min(320px,calc(100% - 32px)); padding:24px; text-align:center; border-radius:16px; background:white; box-shadow:0 12px 36px #172c2244; }
+#draftLoading .dg-spinner { display:block; width:30px; height:30px; margin:0 auto 14px; border:3px solid #d9e2dc; border-top-color:#04361b; border-radius:50%; animation:dg-spin .9s linear infinite; }
+#draftLoading p { margin:8px 0 0; font-size:14px; }
+@keyframes dg-spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion:reduce) { #draftLoading .dg-spinner { animation:none; } }
 #draftDialog [hidden] { display:none !important; }
 </style>
 <dialog id="draftDialog" aria-labelledby="draftTitle">
-  <div class="dg-row"><h2 id="draftTitle">Buat surat dengan template resmi</h2><button id="draftClose" type="button">Tutup</button></div>
-  <p>Lingkungan uji SIDDIQ. Gunakan data contoh.</p>
-  <p id="draftStatus" role="status" aria-live="polite"></p>
-  <a id="draftAuthorize" target="_blank" rel="noopener noreferrer" hidden>Izinkan akses Google Docs</a>
+  <div class="dg-header"><h2 id="draftTitle">Generator Surat Dinas/Nota Dinas Resmi</h2><button id="draftClose" type="button"><span aria-hidden="true">×</span> Tutup</button></div>
+  <p id="draftEnvironment" hidden>Lingkungan uji SIDDIQ. Gunakan data contoh.</p>
   <form id="draftForm" hidden>
     <fieldset id="draftFields">
       <label>Jenis template<select name="type"></select></label>
@@ -27,34 +44,43 @@
       <div id="draftSpecific"></div>
       <div id="draftRecipientFields" hidden>
         <label>Tambahkan penerima dari daftar<select id="draftRecipient"></select></label>
-        <label>Penerima lain<input id="draftRecipientCustom" maxlength="150"></label>
+        <label>Penerima lain<input type="text" id="draftRecipientCustom" maxlength="150"></label>
         <button type="button" id="draftAddRecipient">Tambahkan</button>
         <ol id="draftRecipients"></ol>
         <button type="button" id="draftSortRecipients">Kembalikan urutan hierarki</button>
       </div>
-      <details id="draftApplicant">
-        <summary>Data pemohon untuk pengajuan nomor uji</summary>
-        <label>Nama pemohon<input name="applicant" maxlength="150"></label>
-        <label>Unit kerja<select name="unit"></select></label>
-      </details>
+    </fieldset>
+    <p id="draftGuide" hidden>Edit atau unduh surat dari Google Docs. Jika memerlukan nomor, tunggu perubahan tersimpan, biarkan baris Nomor utuh, lalu ajukan nomor di bawah. Register memakai data surat dari formulir.</p>
+    <fieldset id="draftApplicant" hidden>
+      <legend>Data pemohon untuk pengajuan nomor</legend>
+      <label>Nama pemohon<input type="text" name="applicant" maxlength="150"></label>
+      <label>Unit kerja<select name="unit"></select></label>
     </fieldset>
     <div class="dg-row">
-      <button type="button" id="draftPreview">Pratinjau</button>
-      <button type="button" id="draftOnly">Buat draft saja</button>
-      <button type="button" id="draftNumber">Buat draft &amp; ajukan nomor uji</button>
+      <button type="button" id="draftPreview" class="dg-primary">Pratinjau</button>
+      <button type="button" id="draftNumber" class="dg-primary" hidden>Ajukan Nomor</button>
       <button type="button" id="draftResume" hidden>Lanjutkan proses</button>
+      <a id="draftResult" target="_blank" rel="noopener noreferrer" hidden>Buka Google Docs</a>
+      <button type="button" id="draftNew" hidden>Surat baru</button>
     </div>
-    <p class="dg-preview" id="draftPreviewText" hidden></p>
-    <a id="draftResult" target="_blank" rel="noopener noreferrer" hidden>Buka Google Docs</a>
   </form>
+  <p id="draftStatus" role="status"></p>
+  <a id="draftAuthorize" target="_blank" rel="noopener noreferrer" hidden>Izinkan akses Google Docs</a>
+  <div id="draftLoading" role="status" hidden>
+    <div class="dg-loading-card">
+      <span class="dg-spinner" aria-hidden="true"></span>
+      <strong id="draftLoadingLabel"></strong>
+      <p>Mohon tunggu dan jangan tutup halaman ini.</p>
+    </div>
+  </div>
 </dialog>
 <script>
 (function() {
   const get=id=>document.getElementById(id);
   const dialog=get('draftDialog'), form=get('draftForm'), fields=get('draftFields');
-  let options, recipients=[], manualOrder=false, pending=null, busy=false;
+  let options, recipients=[], manualOrder=false, pending=null, draft=null, busy=false;
   const kinds={
-    SD:[['subject','Perihal'],['target','Tujuan'],['body','Isi surat','textarea']],
+    SD:[['subject','Perihal'],['target','Tujuan','textarea'],['body','Isi surat','textarea']],
     UNDANGAN:[['basis','Dasar undangan (opsional)'],['start','Tanggal kegiatan','date'],['time','Waktu'],['place','Tempat'],['agenda','Acara'],['theme','Tema (opsional)'],['note','Catatan (opsional)']],
     ST_SPD:[['activity','Dalam rangka'],['start','Tanggal mulai','date'],['end','Tanggal selesai (opsional)','date'],['place','Tempat penugasan']],
     GEDUNG:[['activity','Dalam rangka'],['building','Gedung','building'],['start','Tanggal mulai','date'],['end','Tanggal selesai (opsional)','date'],['time','Waktu WIB'],['participants','Jumlah peserta','number'],['contactName','Nama penanggung jawab'],['contactNumber','Kontak penanggung jawab']],
@@ -73,7 +99,14 @@
     const input=document.createElement(type==='textarea'?'textarea':type==='building'?'select':'input');
     input.name=name;
     if(type==='building') optionList(input,options.buildings.map(x=>[x,x]),'Pilih gedung');
-    else if(type==='textarea') input.rows=7;
+    else if(type==='textarea') {
+      input.rows=name==='target'?3:7;
+      if(name==='target') {
+        input.maxLength=300;
+        input.required=true;
+        input.placeholder='Nama penerima\nAlamat\nKota';
+      }
+    }
     else input.type=type||'text';
     if(type==='number') input.min='1';
     wrapper.append(input);
@@ -125,12 +158,13 @@
     get('draftClassification').hidden=!!config.code;
     get('draftFixed').textContent=config.code?'Kode klasifikasi '+config.code:'';
     get('draftRecipientFields').hidden=!['UNDANGAN','KHUSUS'].includes(type);
-    get('draftPreviewText').hidden=true;
   }
   function payload() {
     const data=Object.fromEntries(new FormData(form));
     data.behalf=data.signMode==='an';
     delete data.signMode;
+    delete data.applicant;
+    delete data.unit;
     if(['UNDANGAN','KHUSUS'].includes(data.type)) data.recipients=recipients.slice();
     if(data.type==='ST_SPD') {
       data.people=Array.from(form.querySelectorAll('.dg-person'),row=>Array.from(row.querySelectorAll('input'),i=>i.value));
@@ -139,49 +173,95 @@
     return data;
   }
   function status(message) { get('draftStatus').textContent=message; }
-  function working(value) {
-    busy=value;
-    fields.disabled=value||!!pending;
-    ['draftPreview','draftOnly','draftNumber','draftResume'].forEach(id=>get(id).disabled=value||(id!=='draftResume'&&!!pending));
+  function updateControls() {
+    fields.disabled=busy||!!pending||!!draft;
+    const canNumber=!!draft&&!draft.numbered;
+    get('draftApplicant').hidden=!canNumber;
+    get('draftApplicant').disabled=busy||!!pending;
+    get('draftPreview').hidden=!!draft||!!pending;
+    get('draftNumber').hidden=!canNumber||!!pending;
+    get('draftResume').hidden=busy||!pending;
+    get('draftNew').hidden=busy||!!pending||!draft;
+    get('draftGuide').hidden=!canNumber;
+    get('draftResult').hidden=!draft;
+    get('draftClose').disabled=busy;
   }
-  function start(number,resume) {
-    if(busy) return;
-    if(!resume) {
-      if(!form.reportValidity()) return;
-      const data=payload();
-      if(number&&(!data.applicant.trim()||!data.unit)) {
-        get('draftApplicant').open=true;
-        status('Isi nama pemohon dan unit kerja untuk pengajuan nomor uji.');
-        return;
+  function working(label) {
+    busy=!!label;
+    get('draftLoadingLabel').textContent=label;
+    get('draftLoading').hidden=!busy;
+    form.setAttribute('aria-busy',String(busy));
+    updateControls();
+  }
+  function openPreviewTab() {
+    let tab;
+    try {
+      tab=window.open('about:blank','_blank');
+      if(tab) {
+        tab.opener=null;
+        tab.document.title='Menyiapkan pratinjau SIDDIQ';
+        tab.document.body.textContent='Menyiapkan pratinjau Google Docs…';
       }
-      pending={data,number,token:crypto.randomUUID()};
-    }
-    working(true);
-    get('draftResult').hidden=true;
+    } catch(error) { /* The link remains available if the browser restricts pop-ups. */ }
+    return tab;
+  }
+  function runPending() {
+    const {number,token,data}=pending;
+    const tab=number?null:openPreviewTab();
     get('draftAuthorize').hidden=true;
-    status(number?'Menyiapkan dokumen dan nomor uji…':'Menyiapkan Google Docs…');
-    google.script.run.withSuccessHandler(result=>{
-      if (result.authorizationUrl) {
-        const url=new URL(result.authorizationUrl);
-        if (url.protocol==='https:' && ['accounts.google.com','script.google.com'].includes(url.hostname)) {
-          get('draftAuthorize').href=url.href;
-          get('draftAuthorize').hidden=false;
+    status('');
+    working(number?'Sedang mengajukan nomor…':'Menyiapkan Google Docs…');
+    const rpc=google.script.run.withSuccessHandler(result=>{
+      if(result.authorizationUrl||result.invalid||result.noSlot) {
+        if(tab&&!tab.closed) tab.close();
+        if(result.authorizationUrl) {
+          const url=new URL(result.authorizationUrl);
+          if(url.protocol==='https:'&&['accounts.google.com','script.google.com'].includes(url.hostname)) {
+            get('draftAuthorize').href=url.href;
+            get('draftAuthorize').hidden=false;
+          }
+          status('Akun pengelola perlu mengizinkan Google Docs. Setelah selesai, pilih Lanjutkan proses.');
+        } else {
+          pending=null;
+          status(result.message);
         }
-        working(false);get('draftResume').hidden=false;
-        status('Akun pengelola perlu mengizinkan Google Docs. Setelah selesai, pilih Lanjutkan proses.');
+        working('');
         return;
       }
-      pending=null;working(false);get('draftResume').hidden=true;
-      if(result.invalid) {status(result.message);return;}
-      if(result.noSlot) {status(result.message+' Isian tetap tersedia untuk membuat draft saja.');return;}
-      status('Surat siap · '+result.code);
-      get('draftResult').href=result.url;get('draftResult').hidden=false;
+      pending=null;
+      draft={token,numbered:number,url:result.url};
+      get('draftResult').href=draft.url;
+      let opened=false;
+      if(tab&&!tab.closed) {
+        try { tab.location.replace(draft.url); opened=true; } catch(error) { tab.close(); }
+      }
+      status(number?'Nomor terbit · '+result.code:
+        opened?'Draf siap di Google Docs.':'Draf siap. Pilih Buka Google Docs untuk membuka pratinjau.');
+      working('');
+      if(!number) get('draftResult').focus();
     }).withFailureHandler(error=>{
-      const message=error.message||String(error);
-      working(false);
-      get('draftResume').hidden=false;
-      status(message+' Gunakan Lanjutkan proses untuk mencoba kembali.');
-    }).createLetterDraft(pending.data,pending.token,pending.number);
+      if(tab&&!tab.closed) tab.close();
+      working('');
+      status((error.message||String(error))+' Pilih Lanjutkan proses untuk mencoba kembali.');
+    });
+    if(number) rpc.numberLetterDraft(token,data.applicant,data.unit);
+    else rpc.createLetterDraft(data,token,false);
+  }
+  function startPreview() {
+    if(busy||pending||draft||!form.reportValidity()) return;
+    pending={data:payload(),number:false,token:crypto.randomUUID()};
+    runPending();
+  }
+  function startNumber() {
+    if(busy||pending||!draft||draft.numbered) return;
+    const applicant=form.elements.applicant, unit=form.elements.unit;
+    if(!applicant.value.trim()||!unit.value) {
+      status('Isi nama pemohon dan unit kerja untuk pengajuan nomor.');
+      (!applicant.value.trim()?applicant:unit).focus();
+      return;
+    }
+    pending={data:{applicant:applicant.value,unit:unit.value},number:true,token:draft.token};
+    runPending();
   }
   get('draftGeneratorOpen').onclick=()=>{
     dialog.showModal();
@@ -189,16 +269,19 @@
     status('Memuat master surat…');
     google.script.run.withSuccessHandler(data=>{
       options=data;
+      get('draftEnvironment').hidden=!data.staging;
+      if(data.staging) get('draftNumber').textContent='Ajukan Nomor Uji';
       optionList(form.elements.type,data.types.map(t=>[t.id,t.label]));
       optionList(form.elements.urgency,['B','Pt','Sg','R','SR'].map(code=>[code,data.urgency[code]]));
       optionList(form.elements.signer,data.officials.map(o=>[o.id,o.label]),'Pilih penandatangan');
       optionList(form.elements.classification,data.classifications.map(c=>[c[0],c[0]+' — '+c[1]]),'Pilih kode');
       optionList(form.elements.unit,data.units.map(x=>[x,x]),'Pilih unit');
       optionList(get('draftRecipient'),data.recipients.map(x=>[x,x]),'Pilih penerima');
-      form.elements.date.value=data.today; typeChanged(); form.hidden=false; status('');
+      form.elements.date.value=data.today; typeChanged(); form.hidden=false; status(''); updateControls();
     }).withFailureHandler(e=>status(e.message||String(e))).getLetterDraftOptions();
   };
   get('draftClose').onclick=()=>dialog.close();
+  dialog.oncancel=event=>{if(busy) event.preventDefault();};
   form.onsubmit=e=>e.preventDefault();
   form.elements.type.onchange=typeChanged;
   get('draftAddRecipient').onclick=()=>{
@@ -209,18 +292,25 @@
     if(!manualOrder) sortRecipients(); else drawRecipients();
   };
   get('draftSortRecipients').onclick=()=>{manualOrder=false;sortRecipients();};
-  get('draftPreview').onclick=()=>{
-    if(!form.reportValidity()||busy) return;
-    const data=payload();
-    working(true);status('Memeriksa isian…');
-    google.script.run.withSuccessHandler(r=>{
-      working(false);status('');
-      const box=get('draftPreviewText');box.hidden=false;
-      box.textContent=[r.code,r.date,r.subject,'Yth. '+r.to.join('\n       '),'Penandatangan: '+r.signer,r.from].join('\n');
-    }).withFailureHandler(e=>{working(false);status(e.message||String(e));}).previewLetterDraft(data);
+  get('draftPreview').onclick=startPreview;
+  get('draftNumber').onclick=startNumber;
+  get('draftResume').onclick=()=>{if(!busy&&pending) runPending();};
+  get('draftNew').onclick=()=>{
+    draft=null;
+    form.reset();
+    form.elements.type.selectedIndex=0;
+    form.elements.urgency.selectedIndex=0;
+    form.elements.signer.selectedIndex=0;
+    form.elements.classification.selectedIndex=0;
+    form.elements.unit.selectedIndex=0;
+    form.elements.date.value=options.today;
+    recipients=[];
+    manualOrder=false;
+    drawRecipients();
+    typeChanged();
+    status('');
+    updateControls();
+    form.elements.type.focus();
   };
-  get('draftOnly').onclick=()=>start(false,false);
-  get('draftNumber').onclick=()=>start(true,false);
-  get('draftResume').onclick=()=>start(pending.number,true);
 })();
 </script>
