@@ -1,10 +1,11 @@
 // Durable private job ledger. Script Properties remain read-only legacy fallback.
 // Construct outside the job lock; get/set are called with an active per-token lease.
 function letterDraftJobStore_(token) {
-  var book=finalLedgerBook_(), props=PropertiesService.getScriptProperties();
-  // Do not read sheet metadata before this lock. Apps Script caches an absent
-  // sheet in a workbook handle, even if openById is called again after waiting.
+  var props=PropertiesService.getScriptProperties();
+  // Open the workbook only after locking: even the initial openById can cache
+  // sheet metadata. Reopening a pre-lock handle does not invalidate that cache.
   var sheet=letterDraftLock_(function() {
+    var book=finalLedgerBook_();
     var s=book.getSheetByName('GENERATOR_JOBS');
     if(!s) {
       s=book.insertSheet('GENERATOR_JOBS');

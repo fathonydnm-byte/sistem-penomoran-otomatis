@@ -122,3 +122,11 @@ assert(!adminSource.includes('Identitas nomor reservasi tidak boleh diubah'));
 assert(adminSource.includes('newValues[18] = editedLetterDate'));
 
 console.log('PASS admin edit supports regular, backdated, and reservation records safely.');
+
+const normalizeCtx=vm.createContext({console});
+vm.runInContext(fs.readFileSync('Code.js','utf8'),normalizeCtx);
+vm.runInContext(adminSource,normalizeCtx);
+const allRecipients=Array.from({length:30},(_,i)=>'Pejabat dengan jabatan lengkap '+i).join(', ');
+assert.equal(normalizeCtx.normalizeAdminPayload_({to:allRecipients}).to,allRecipients);
+assert(fs.readFileSync('EditDialog.html','utf8').includes('id="to" name="to" maxlength="6000"'));
+console.log('PASS editing another admin field does not truncate long invitation recipients.');

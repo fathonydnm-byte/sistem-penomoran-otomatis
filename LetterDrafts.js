@@ -295,7 +295,7 @@ function letterDraftRender_(doc,m) {
 }
 function letterDraftLock_(fn) {
   var lock=LockService.getScriptLock();
-  lock.waitLock(15000);
+  try {lock.waitLock(30000);} catch(e) {throw Error('Sistem sedang sibuk. Pilih Lanjutkan proses beberapa saat lagi.');}
   try {return fn();} finally {lock.releaseLock();}
 }
 function letterDraftPayloadKey_(payload, withNumber) {
