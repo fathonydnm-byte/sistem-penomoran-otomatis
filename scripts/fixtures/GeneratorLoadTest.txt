@@ -1,0 +1,44 @@
+<section class="card" aria-label="Uji generator terisolasi">
+<h2>UJI GENERATOR — data buatan</h2>
+<p>Pratinjau Google Docs, ajukan nomor, ulangi token, verifikasi PDF dan register. Hanya proyek uji.</p>
+<button type="button" id="genTest5">Uji 5 pengguna bersamaan</button>
+<button type="button" id="genTest10">Uji 10 pengguna bersamaan</button>
+<pre id="genTestStatus" role="status">Belum dijalankan.</pre>
+</section>
+<script>
+(function(){
+const status=document.getElementById('genTestStatus');
+const buttons=[document.getElementById('genTest5'),document.getElementById('genTest10')];
+const rpc=(method,...args)=>new Promise((resolve,reject)=>google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[method](...args));
+async function run(count){
+ buttons.forEach(b=>b.disabled=true);const started=performance.now();const results=[];
+ status.textContent='Menyiapkan data buatan…';
+ try {
+  const seed=await rpc('generatorLoadSeed',count);
+  status.textContent='Membuat '+count+' draf secara bersamaan…';
+  const drafts=await Promise.allSettled(seed.jobs.map(async job=>{
+    const t=performance.now(),result=await rpc('generatorLoadCreate',seed.run,job);
+    if(!result.url) throw Error(JSON.stringify(result));
+    return {token:job.token,ms:Math.round(performance.now()-t),url:result.url};
+  }));
+  results.push({phase:'create',results:drafts});status.textContent=JSON.stringify(results,null,2)+'\nMengajukan nomor bersamaan…';
+  const numbered=await Promise.allSettled(seed.jobs.map(async job=>{
+    const t=performance.now(),result=await rpc('generatorLoadNumber',seed.run,job);
+    if(!result.code) throw Error(JSON.stringify(result));
+    return {token:job.token,ms:Math.round(performance.now()-t),code:result.code,url:result.url};
+  }));
+  results.push({phase:'number',results:numbered});status.textContent=JSON.stringify(results,null,2)+'\nMenguji pengiriman ulang…';
+  const duplicate=await Promise.allSettled(seed.jobs.map(async (job,i)=>{
+    const result=await rpc('generatorLoadNumber',seed.run,job);
+    if(result.code!==numbered[i].value?.code||result.url!==drafts[i].value?.url) throw Error('Retry identity mismatch');
+    return 'same document and number';
+  }));
+  results.push({phase:'retry',results:duplicate});
+  const verification=await rpc('generatorLoadVerify',seed.run,seed.jobs);
+  status.textContent=JSON.stringify({seconds:Math.round((performance.now()-started)/1000),verification,phases:results},(key,value)=>value instanceof Error?{message:value.message}:value,2);
+ } catch(error){status.textContent+='\nERROR '+(error.message||error);}
+ finally{buttons.forEach(b=>b.disabled=false);}
+}
+buttons[0].onclick=()=>run(5);buttons[1].onclick=()=>run(10);
+})();
+</script>

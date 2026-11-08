@@ -1,0 +1,60 @@
+// This file is copied only into the isolated staging project, never production.
+function generatorLoadGuard_() {
+  chunkTestGuard_(); bindChunkStaging_();
+  if(APP.SPREADSHEET_ID==='1UR8puYkKdOKyMEqBbXYgBei1hNCvPSoMjGFkxTSgNhM') throw Error('STOP: master cannot be a test register');
+}
+function generatorLoadSeed(count) {
+  generatorLoadGuard_();
+  if(count!==5 && count!==10) throw Error('Invalid test count');
+  var opts=getLetterDraftOptions(), signer=opts.officials.find(function(o){return /Ali Mustofa/.test(o.label);});
+  if(!signer) throw Error('Expected signer missing');
+  var run=Utilities.getUuid(), kinds=['SD','UNDANGAN','ST_SPD','GEDUNG','KENDARAAN','SK','KHUSUS','SD','UNDANGAN','ST_SPD'];
+  var jobs=Array.from({length:count},function(_,i){
+    var tag='DATA BUATAN '+run+' '+i;
+    return {token:Utilities.getUuid(),tag:tag,data:{type:kinds[i],urgency:'B',date:opts.today,signer:signer.id,
+      classification:'HM.01',subject:tag,target:'Penerima Uji\nAlamat Uji\ndi Surabaya',body:tag,
+      start:opts.today,end:opts.today,time:'09.00',place:tag,activity:tag,agenda:tag,
+      recipients:opts.recipients.slice(0,i===8?20:3).map(function(o){return {id:o.id};}),
+      building:opts.buildings[0],participants:'20',vehicles:'2',contactName:'Penanggung Jawab Uji',contactNumber:'000000',
+      people:[['Personel Uji A','','','Jabatan Uji'],['Personel Uji B','','','Jabatan Uji']]}};
+  });
+  var p=PropertiesService.getScriptProperties();
+  p.setProperty('GEN_TEST_'+run,JSON.stringify({active:0,peak:0}));
+  return {run:run,jobs:jobs};
+}
+function generatorLoadMeter_(run,fn) {
+  generatorLoadGuard_();
+  var p=PropertiesService.getScriptProperties(),key='GEN_TEST_'+run;
+  finalLock_(function(){var s=JSON.parse(p.getProperty(key));s.active++;s.peak=Math.max(s.peak,s.active);p.setProperty(key,JSON.stringify(s));});
+  try{return fn();}finally{finalLock_(function(){var s=JSON.parse(p.getProperty(key));s.active--;p.setProperty(key,JSON.stringify(s));});}
+}
+function generatorLoadCreate(run,job) {
+  return generatorLoadMeter_(run,function(){return createLetterDraft(job.data,job.token,false);});
+}
+function generatorLoadNumber(run,job) {
+  return generatorLoadMeter_(run,function(){return numberLetterDraft(job.token,'Pemohon Uji '+job.tag,'Bagian Umum');});
+}
+function generatorLoadVerify(run,jobs) {
+  generatorLoadGuard_();
+  var p=PropertiesService.getScriptProperties(),seen={}, docs={}, rows=reservationRows_(getRequiredSheet_(APP.DATA_SHEET),REQUEST_HEADERS.length);
+  var results=jobs.map(function(input){
+    var job=JSON.parse(p.getProperty('LETTER_DRAFT_'+input.token)||'{}');
+    var matching=rows.filter(function(r){return r[15]===input.token;});
+    var issues=[];
+    if(matching.length!==1) issues.push('register count '+matching.length);
+    var r=matching[0]||[], unique=r[2]+'/'+r[12]+'/'+r[1];
+    if(seen[unique]) issues.push('duplicate number');seen[unique]=true;
+    if(docs[job.docId]) issues.push('duplicate document');docs[job.docId]=true;
+    if(r[10]!==REQUEST_STATUS.ACTIVE||!r[14]) issues.push('PDF archive/status missing');
+    if(!job.numberedResult) issues.push('numbered result missing');
+    if(job.docId && job.numberedResult) {
+      var text=DocumentApp.openById(job.docId).getBody().getText();
+      if(text.indexOf(job.numberedResult.code)<0||text.indexOf('[BELUM BERNOMOR]')>=0) issues.push('document number mismatch');
+      if(text.indexOf(input.tag)<0 && input.data.type!=='GEDUNG') issues.push('wrong document content');
+      if(DriveApp.getFileById(r[14]).getMimeType()!==MimeType.PDF) issues.push('archive is not PDF');
+    }
+    return {type:input.data.type,number:r[1],ok:!issues.length,issues:issues};
+  });
+  var stats=JSON.parse(p.getProperty('GEN_TEST_'+run));
+  return {run:run,peak:stats.peak,active:stats.active,results:results};
+}
