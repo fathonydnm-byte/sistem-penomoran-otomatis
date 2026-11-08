@@ -24,3 +24,7 @@ console.log('Staging-only project:',target);
 
 fs.copyFileSync('scripts/fixtures/GeneratorLoadServer.txt',path.join(dir,'GeneratorLoadServer.js'));
 fs.copyFileSync('scripts/fixtures/GeneratorLoadTest.txt',path.join(dir,'GeneratorLoadTest.html'));
+if(fs.existsSync('LetterDraftJobs.js')) {
+  const jobs=fs.readFileSync('LetterDraftJobs.js','utf8').replace(/GENERATOR_JOBS/g,'GENERATOR_JOBS_UAT');
+  fs.writeFileSync(path.join(dir,'LetterDraftJobs.js'),jobs);
+}

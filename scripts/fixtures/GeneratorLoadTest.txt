@@ -3,12 +3,13 @@
 <p>Pratinjau Google Docs, ajukan nomor, ulangi token, verifikasi PDF dan register. Hanya proyek uji.</p>
 <button type="button" id="genTest5">Uji 5 pengguna bersamaan</button>
 <button type="button" id="genTest10">Uji 10 pengguna bersamaan</button>
+<button type="button" id="genTestDuplicate">Uji 10 kiriman token sama</button>
 <pre id="genTestStatus" role="status">Belum dijalankan.</pre>
 </section>
 <script>
 (function(){
 const status=document.getElementById('genTestStatus');
-const buttons=[document.getElementById('genTest5'),document.getElementById('genTest10')];
+const buttons=[document.getElementById('genTest5'),document.getElementById('genTest10'),document.getElementById('genTestDuplicate')];
 const rpc=(method,...args)=>new Promise((resolve,reject)=>google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[method](...args));
 async function run(count){
  buttons.forEach(b=>b.disabled=true);const started=performance.now();const results=[];
@@ -40,5 +41,19 @@ async function run(count){
  finally{buttons.forEach(b=>b.disabled=false);}
 }
 buttons[0].onclick=()=>run(5);buttons[1].onclick=()=>run(10);
+buttons[2].onclick=async()=>{
+ buttons.forEach(b=>b.disabled=true);status.textContent='Menguji sepuluh pengajuan untuk satu draf…';
+ try {
+  const seed=await rpc('generatorLoadSeed',5),job=seed.jobs[0];
+  const draft=await rpc('generatorLoadCreate',seed.run,job);
+  if(!draft.url) throw Error(JSON.stringify(draft));
+  const wave=await Promise.allSettled(Array.from({length:10},()=>rpc('generatorLoadNumber',seed.run,job)));
+  const retry=await rpc('generatorLoadNumber',seed.run,job);
+  const verification=await rpc('generatorLoadVerify',seed.run,[job]);
+  const fulfilled=wave.filter(r=>r.status==='fulfilled');
+  if(fulfilled.some(r=>r.value.code!==retry.code||r.value.url!==retry.url)) throw Error('Duplicate identity mismatch');
+  status.textContent=JSON.stringify({scenario:'10 same-token submissions',successfulResponses:fulfilled.length,busyResponses:wave.length-fulfilled.length,retry,verification},null,2);
+ }catch(e){status.textContent+='\nERROR '+(e.message||e);}finally{buttons.forEach(b=>b.disabled=false);}
+};
 })();
 </script>

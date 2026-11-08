@@ -169,3 +169,16 @@ const recovered=ctx.numberLetterDraft(checkpointToken,'Pemohon Uji','Bagian Umum
 assert.match(recovered.code,/B-501/);
 assert.equal(reservations,beforeReservations+1);
 console.log('PASS same-token busy claims, checkpoint failure recovery without trash/duplicates, edited-number preflight and restored retry.');
+
+// A completed copy whose job checkpoint was lost is recovered by token/marker.
+const orphanToken='d2345678-1234-4321-8123-123456789012';
+const hash=ctx.letterDraftPayloadKey_(base,false);
+props.set('LETTER_DRAFT_'+orphanToken,JSON.stringify({hash,attempt:1,until:0}));
+const privateFolder={name:'private',getFilesByName(name){assert(name.includes(orphanToken));let done=false;return {hasNext:()=>!done,next(){done=true;return output;}};}};
+output.getDescription=()=> 'SIDDIQ_RENDERED:'+orphanToken+':'+hash;
+ctx.finalPrivateChild_=()=>privateFolder;
+beforeCopies=copies;
+assert.equal(ctx.createLetterDraft(base,orphanToken,false).url,'https://docs.google.com/document/d/draft-id/edit');
+assert.equal(copies,beforeCopies);
+assert.throws(()=>ctx.createLetterDraft(base,'------------------------------------',false),/Identitas/);
+console.log('PASS completed orphan recovery and canonical UUID validation.');

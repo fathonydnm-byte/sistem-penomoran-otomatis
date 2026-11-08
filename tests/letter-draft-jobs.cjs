@@ -1,14 +1,15 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 let rows=[],locked=false,privateBook=true,flushes=0;
 const legacy=new Map(),sheets={};
-const sheet={getLastRow:()=>rows.length,getRange(row,col,h=1,w=1){return {
+const sheet={getSheetId:()=>42,getLastRow:()=>rows.length,getRange(row,col,h=1,w=1){return {
  getValues:()=>Array.from({length:h},(_,i)=>Array.from({length:w},(_,j)=>rows[row-1+i]?.[col-1+j]??'')),
  setValues(values){if(row>rows.length)assert(locked,'new row must hold script lock');values.forEach((r,i)=>{rows[row-1+i]||=[];r.forEach((v,j)=>rows[row-1+i][col-1+j]=v);});},
  createTextFinder(text){return {matchEntireCell(){return this;},findAll(){return rows.flatMap((r,i)=>i>=row-1&&String(r[col-1])===text?[{getRow:()=>i+1}]:[]);}}}
 }}};
-const ctx=vm.createContext({console,Date,SpreadsheetApp:{flush(){flushes++;}},
- PropertiesService:{getScriptProperties:()=>({getProperty:k=>legacy.get(k)})},
- finalLedgerBook_:()=>{if(!privateBook)throw Error('must be private');return {getSheetByName:n=>sheets[n],insertSheet(n){assert(locked);sheets[n]=sheet;return sheet;}};},
+const book={getId:()=> 'private-book',getSheetById:id=>id===42?sheets.GENERATOR_JOBS:null,getSheetByName:n=>sheets[n],insertSheet(n){assert(locked);sheets[n]=sheet;return sheet;}};
+const ctx=vm.createContext({console,Date,SpreadsheetApp:{openById:id=>{assert.equal(id,'private-book');return book;},flush(){flushes++;}},
+ PropertiesService:{getScriptProperties:()=>({getProperty:k=>legacy.get(k),setProperty:(k,v)=>legacy.set(k,v)})},
+ finalLedgerBook_:()=>{if(!privateBook)throw Error('must be private');return book;},
  letterDraftLock_:fn=>{assert(!locked);locked=true;try{return fn();}finally{locked=false;}}
 });
 vm.runInContext(fs.readFileSync('LetterDraftJobs.js','utf8'),ctx);
@@ -27,3 +28,12 @@ assert.throws(()=>set(store('too-large'),{body:'x'.repeat(46000)}),/terlalu panj
 rows.push(rows.find(r=>r[0]==='user-0').slice());assert.throws(()=>store('user-0').get(),/ganda/);
 assert(flushes>10);
 console.log('PASS private durable jobs: 10 independent leases, row sorting, >9KB record, legacy migration, duplicate fail-closed, durable flush.');
+// A handle opened before another execution creates the sheet stays stale. The
+// persisted sheet ID and fresh handle must win, rather than calling insert twice.
+const staleBook={getId:()=> 'private-book',getSheetByName:()=>null};
+ctx.finalLedgerBook_=()=>staleBook;
+let insertions=0;
+book.insertSheet=()=>{insertions++;throw Error('duplicate sheet');};
+assert.equal(store('old').get().number,123);
+assert.equal(insertions,0);
+console.log('PASS first-use sheet discovery recovers a stale pre-lock workbook handle.');
