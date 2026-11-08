@@ -234,11 +234,19 @@ function letterDraftLock_(fn) {
   lock.waitLock(15000);
   try {return fn();} finally {lock.releaseLock();}
 }
+function letterDraftPayloadKey_(payload, withNumber) {
+  var fields=Object.keys(payload||{}).sort().map(function(key) {return [key,payload[key]];});
+  return JSON.stringify([fields,!!withNumber]);
+}
 function createLetterDraft(p, token, withNumber) {
   letterDraftGuard_();
+  var docsAuth=ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL,['https://www.googleapis.com/auth/documents']);
+  if (docsAuth.getAuthorizationStatus()===ScriptApp.AuthorizationStatus.REQUIRED) {
+    return {authorizationUrl:docsAuth.getAuthorizationUrl()};
+  }
   if (!/^[0-9a-f-]{36}$/i.test(token||'')) throw Error('Identitas proses tidak valid.');
   var props=PropertiesService.getScriptProperties(), key='LETTER_DRAFT_'+token;
-  var digest=Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,JSON.stringify([p,!!withNumber])));
+  var digest=Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,letterDraftPayloadKey_(p,withNumber)));
   var job=letterDraftLock_(function() {
     var j=JSON.parse(props.getProperty(key)||'{}');
     if(j.hash && j.hash!==digest) throw Error('Data berubah. Mulai proses baru.');
@@ -251,6 +259,7 @@ function createLetterDraft(p, token, withNumber) {
   });
   if(job.done) return job.result;
   function save(){props.setProperty(key,JSON.stringify(job));}
+  var readyToWrite=false;
   try {
     var m=letterDraftModel_(p,letterDraftOfficials_(),letterDraftBuildings_());
     if(withNumber) {
@@ -261,6 +270,7 @@ function createLetterDraft(p, token, withNumber) {
         from:m.type==='SD'?m.signer.name:m.signer.short,to:m.target.join(', '),applicantName:cleanText_(p.applicant,150),unit:p.unit,token:token});
       if(p.date>reservationDateKey_(new Date())) throw Error('Tanggal surat mendatang belum dapat diajukan.');
     }
+    readyToWrite=true;
     var folder=getOrCreateFolder_(DriveApp.getFolderById(APP.ROOT_FOLDER_ID),'Draft Generator Surat Uji');
     if(!job.docId) {
       var file=DriveApp.getFileById(m.kind[3]).makeCopy('UJI — '+m.subject+' — '+token,folder);
@@ -298,6 +308,7 @@ function createLetterDraft(p, token, withNumber) {
   } catch(e) {
     console.error('Generator surat: '+e.message);
     if(job.number) throw Error('Nomor '+job.number+' telah terbit. Gunakan Lanjutkan proses untuk menyelesaikan dokumen.');
+    if (!readyToWrite && !job.docId) return {invalid:true,message:toUserSafeError_(e)};
     if (/^Nomor cadangan tidak tersedia/.test(e.message)) {
       return {noSlot:true,message:e.message};
     }

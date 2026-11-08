@@ -14,6 +14,7 @@
   <div class="dg-row"><h2 id="draftTitle">Buat surat dengan template resmi</h2><button id="draftClose" type="button">Tutup</button></div>
   <p>Lingkungan uji SIDDIQ. Gunakan data contoh.</p>
   <p id="draftStatus" role="status" aria-live="polite"></p>
+  <a id="draftAuthorize" target="_blank" rel="noopener noreferrer" hidden>Izinkan akses Google Docs</a>
   <form id="draftForm" hidden>
     <fieldset id="draftFields">
       <label>Jenis template<select name="type"></select></label>
@@ -157,9 +158,21 @@
     }
     working(true);
     get('draftResult').hidden=true;
+    get('draftAuthorize').hidden=true;
     status(number?'Menyiapkan dokumen dan nomor uji…':'Menyiapkan Google Docs…');
     google.script.run.withSuccessHandler(result=>{
+      if (result.authorizationUrl) {
+        const url=new URL(result.authorizationUrl);
+        if (url.protocol==='https:' && ['accounts.google.com','script.google.com'].includes(url.hostname)) {
+          get('draftAuthorize').href=url.href;
+          get('draftAuthorize').hidden=false;
+        }
+        working(false);get('draftResume').hidden=false;
+        status('Akun pengelola perlu mengizinkan Google Docs. Setelah selesai, pilih Lanjutkan proses.');
+        return;
+      }
       pending=null;working(false);get('draftResume').hidden=true;
+      if(result.invalid) {status(result.message);return;}
       if(result.noSlot) {status(result.message+' Isian tetap tersedia untuk membuat draft saja.');return;}
       status('Surat siap · '+result.code);
       get('draftResult').href=result.url;get('draftResult').hidden=false;
@@ -177,7 +190,7 @@
     google.script.run.withSuccessHandler(data=>{
       options=data;
       optionList(form.elements.type,data.types.map(t=>[t.id,t.label]));
-      optionList(form.elements.urgency,Object.entries(data.urgency));
+      optionList(form.elements.urgency,['B','Pt','Sg','R','SR'].map(code=>[code,data.urgency[code]]));
       optionList(form.elements.signer,data.officials.map(o=>[o.id,o.label]),'Pilih penandatangan');
       optionList(form.elements.classification,data.classifications.map(c=>[c[0],c[0]+' — '+c[1]]),'Pilih kode');
       optionList(form.elements.unit,data.units.map(x=>[x,x]),'Pilih unit');

@@ -22,6 +22,10 @@ assert.equal(model({type:'KENDARAAN',...event,contactName:'Uji',contactNumber:'0
 assert.match(model({type:'SK',activity:'Kegiatan'}).code,/HK\.00\.5/);
 assert.equal(model({type:'KHUSUS',recipients:['Rektor']}).target[0],'Rektor');
 assert.throws(()=>model({type:'UNDANGAN',...event,start:'2026-11-11',agenda:'Rapat'}),/mendahului/);
+assert.equal(ctx.letterDraftPayloadKey_({date:'2026-11-09',type:'SK'},true),
+  ctx.letterDraftPayloadKey_({type:'SK',date:'2026-11-09'},true));
+assert.notEqual(ctx.letterDraftPayloadKey_({date:'2026-11-09',type:'SK'},true),
+  ctx.letterDraftPayloadKey_({type:'SK',date:'2026-11-09'},false));
 const html=fs.readFileSync('LetterDraftsUI.html','utf8');
 for(const match of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) new vm.Script(match[1]);
 assert.throws(()=>vm.runInContext("ScriptApp={getScriptId:()=> 'production'}; letterDraftGuard_()",ctx),/web app uji/);
