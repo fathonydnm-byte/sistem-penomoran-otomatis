@@ -8,7 +8,7 @@ https://drive.google.com/drive/folders/1f_Uq5h3SJoT5X5GyfLyon_-qef-933_n
 Pengguna diarahkan memilih Surat Dinas atau Nota Dinas dan memakai File > Buat
 salinan sebelum mengisi surat. Tautan memakai `noopener noreferrer`. Penambahan
 ini tidak mengubah counter, unggahan draft, reservasi, atau generator kode surat.
-Pengembangan pelengkapan surat final tetap ditunda.
+Saat perubahan ini dibuat, pelengkapan surat final masih ditunda. Fitur tersebut kemudian [dirilis pada 4 November](rilis-final-surat-20261104.md).
 
 ## Pemeriksaan ekspor Word
 

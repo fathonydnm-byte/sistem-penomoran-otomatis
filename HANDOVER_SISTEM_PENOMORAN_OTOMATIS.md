@@ -1,39 +1,25 @@
-# Handover Sistem Penomoran Surat Otomatis
+# Handover Project SIDDIQ — Sistem Penomoran Surat Otomatis
 
-> Pembaruan unggah 4 November 2026: paket 1 MiB, progres byte terkonfirmasi,
-> retry dan Lanjutkan unggah. Uji Drive staging 10/10 file paralel lulus,
-> puncak 10 eksekusi server, seluruh kelompok 73 detik (file 1,5 MiB).
-> Rincian protokol, kuota, batas resume dan rollback:
-> [docs/unggah-final-bertahap.md](docs/unggah-final-bertahap.md).
+Dokumen induk Bagian Umum UIN Sunan Ampel Surabaya. Baseline serah terima **9 November 2026 (WIB)**, sampai sprint pencarian personel dan perapian tabel Nota Dinas ST/SPD.
 
-> Rilis 4 November 2026: pelengkapan surat final, monitoring admin, optimasi unggah,
-> serta rekomendasi kode kecil di halaman depan. Ledger dan PDF final privat,
-> terpisah dari spreadsheet utama. Panduan rilis/rollback:
-> [docs/rilis-final-surat-20261104.md](docs/rilis-final-surat-20261104.md).
-
-> Pembaruan 29 Oktober 2026: modul generator kode lengkap opsional ditambahkan
-> pada hasil pengajuan individual Surat Dinas dan Nota Dinas. Rincian perilaku,
-> sumber master Excel, konfirmasi `TL.03`, integrasi, pengujian, serta deployment
-> tersedia di [docs/generator-kode-surat.md](docs/generator-kode-surat.md).
-> Tabel status verifikasi historis di bawah tetap menggambarkan audit sebelumnya.
-
-> Dokumen induk teknis dan operasional untuk pemeliharaan, pengembangan lanjutan, audit, serta serah terima aplikasi Google Apps Script + Google Sheets milik Bagian Umum UIN Sunan Ampel Surabaya.
+Untuk pindah chat, gunakan prompt siap salin di **§32**. Untuk melanjutkan pengembangan, cek baseline di bawah dan runbook rilis di **§19–20 dan §31**. Riwayat sprint ada di **§25**. Fitur final, generator Docs, dan pembaruan personel dijelaskan di **§28–30**.
 
 ## 1. Ringkasan status
 
-| Item | Kondisi saat verifikasi |
+| Item | Baseline terverifikasi |
 |---|---|
-| Tanggal verifikasi | 25 September 2026 |
-| Zona waktu aplikasi | `Asia/Jakarta` |
-| Repository | `fathonydnm-byte/sistem-penomoran-otomatis` |
-| Branch produksi | `claude/audit-surat-dinas-system-p9saof` |
-| Revisi kode live | `66c521bd26dc2bb165eea9693d6415db3c2e5a51` |
-| Pesan revisi live | `[deploy-webapp] Aktifkan revisi tanggal permintaan mundur` |
-| GitHub Actions deployment | Run `35438555388`, seluruh langkah berhasil |
-| Pengujian lokal | 12/12 skenario lulus; JavaScript klien valid |
-| Status sinkronisasi | Berkas aplikasi di GitHub identik dengan sumber yang dikirim dan dideploy oleh workflow tersebut |
+| Zona waktu | `Asia/Jakarta` |
+| Repository | [fathonydnm-byte/sistem-penomoran-otomatis](https://github.com/fathonydnm-byte/sistem-penomoran-otomatis) |
+| Branch produksi dan default | `claude/audit-surat-dinas-system-p9saof` |
+| Versi web app live | **v46** dari `58ee753100e2968f1de3d539b01777605567c8fa` |
+| Bukti deployment live | [Actions run 42534242361](https://github.com/fathonydnm-byte/sistem-penomoran-otomatis/actions/runs/42534242361), push 18 file dan deploy v46 berhasil. Versi dan SHA dikonfirmasi di Manage deployments |
+| Branch staging aktif | `feature/final-upload-chunks-20261104` |
+| Versi staging | **v24** dari `2bcc0050f2e16fccae2ab48914c006d3b05e2839` |
+| Bukti deployment staging | [Actions run 42536975296](https://github.com/fathonydnm-byte/sistem-penomoran-otomatis/actions/runs/42536975296), sembilan suite dan deploy staging lulus |
+| Sprint terakhir | Pencarian `Master_Pegawai`, pengisian otomatis yang bisa diedit, NIP personel opsional, tabel Docs lima kolom, perbaikan batas panjang jabatan |
+| Verifikasi terbaru | Sembilan suite lokal lulus. Template sumber ST/SPD dibaca ulang. Uji live v46 menghasilkan Google Docs tanpa menerbitkan nomor |
 
-Commit dokumentasi setelah revisi live tidak mengubah kode aplikasi. Berkas Markdown, dokumentasi, tes, dan konfigurasi GitHub dikecualikan dari `clasp push` oleh `.claspignore`.
+Pada waktu serah terima, perbedaan antara commit rilis dan ujung branch produksi hanya dokumentasi dan bukti pengujian. Kode live dapat ditelusuri ke log rilis dan SHA di atas. Seluruh 18 file runtime di branch staging dan produksi cocok sebelum transformasi khusus staging. Google Docs sumber, isi Sheets, Script Properties, izin, dan trigger dikelola di Workspace.
 
 ## 2. Tujuan aplikasi
 
@@ -54,7 +40,11 @@ Sistem mendukung:
 - unggah draft dengan retry dan pemulihan;
 - pencatatan audit permintaan serta perubahan admin;
 - migrasi slot lama yang ditandai `Slot Kosong`;
-- arsip tahunan otomatis.
+- arsip tahunan otomatis;
+- tautan template resmi Viewer dan rekomendasi kode Surat Dinas/Nota Dinas;
+- pelengkapan PDF final, monitoring admin, ekspor dan unggah resumable;
+- generator Google Docs dari tujuh tipe template, pratinjau, dan pengajuan nomor dari draf yang sama;
+- pencarian personel dari `Master_Pegawai` pada permohonan ST/SPD.
 
 ## 3. Lokasi dan identitas sistem
 
@@ -83,7 +73,7 @@ flowchart TD
     P --> W
 ```
 
-Google Sheets adalah sumber data utama. Drive menyimpan draft. Apps Script menangani validasi, nomor, lock, upload, menu admin, trigger, dan halaman pengguna. GitHub adalah sumber versi kode yang dapat ditelusuri.
+Google Sheets menyimpan register, konfigurasi, dan master. Drive menyimpan draft, template dan PDF final. Workbook privat menyimpan ledger final dan status proses generator. Apps Script menangani validasi, nomor, lock, unggah, render Google Docs, menu admin, trigger, dan halaman pengguna. GitHub menyimpan source, workflow, dan bukti rilis.
 
 ## 5. Struktur source code
 
@@ -96,10 +86,17 @@ Google Sheets adalah sumber data utama. Drive menyimpan draft. Apps Script menan
 | `Admin.js` | Edit, pembatalan, token admin dan audit perubahan |
 | `Archive.js` | Arsip tahunan manual/otomatis serta notifikasi |
 | `EditDialog.html` | Dialog edit baris terpilih dari Google Sheets |
+| `LetterCodes.html` | Rekomendasi format kode dan master klasifikasi dari Excel |
+| `FinalLetters.js`, `FinalLettersUI.html` | Riwayat publik, validasi dan ledger final, monitoring, admin, ekspor |
+| `FinalStorage.js` | Bootstrap cadangan dan penyimpanan privat |
+| `FinalUpload.js`, `FinalUploadClient.html` | Sesi unggah final, paket, progres, retry dan commit |
+| `LetterDrafts.js`, `LetterDraftsUI.html` | Form generator, data master, render Google Docs, pratinjau, pengajuan nomor, pencarian personel |
+| `LetterDraftClassification.js` | Daftar klasifikasi untuk generator draf |
+| `LetterDraftJobs.js` | Penyimpanan status proses draf dan penomoran pada ledger privat |
 | `appsscript.json` | Manifest Apps Script, runtime, timezone dan akses web app |
 | `.github/workflows/clasp-push.yml` | Sinkronisasi GitHub ke Apps Script dan deployment bersyarat |
 | `.claspignore` | Mencegah dokumen, tes dan workflow terkirim sebagai source Apps Script |
-| `tests/reservations.cjs` | Regresi logika reservasi dan parsing JavaScript klien |
+| `tests/*.cjs` | Sembilan suite regresi produksi. Rincian di §23 |
 | `docs/reservasi-harian.md` | Dokumen implementasi khusus fitur reservasi |
 
 ## 6. Model nomor dan counter
@@ -208,7 +205,7 @@ Nama mode aktual mengikuti nilai yang ditulis source. Saat menambah mode baru, p
 
 Tujuan fitur ini adalah menyediakan nomor untuk permintaan surat bertanggal sebelumnya tanpa mengubah tanggal surat menjadi tanggal pengajuan aktual.
 
-Konfigurasi live saat verifikasi:
+Snapshot konfigurasi pada audit September 2026. Cek nilai terkini sebelum mengubah setting:
 
 | Parameter | Nilai |
 |---|---|
@@ -446,60 +443,33 @@ Tujuan:
 - menjaga `PERMINTAAN` dan `LOG_PERUBAHAN` tetap ringan;
 - memindahkan data selesai ke `ARSIP_<NAMA_SHEET>_<TAHUN>`;
 - mempertahankan data tahun berjalan;
-- mempertahankan data lama yang masih pending/reservasi/gagal upload bila masih dibutuhkan operasional;
+- mempertahankan slot/pending yang diperlukan dan baris lama yang memenuhi syarat pelengkapan final agar riwayat tetap dapat diakses;
 - mengirim notifikasi hasil atau kegagalan ke admin.
 
 Data yang sudah diarsipkan dianggap historis. Koreksi dilakukan secara manual dan terkontrol pada sheet arsip.
 
 ## 19. Deployment GitHub ke Apps Script
 
-Workflow berjalan setiap push ke branch produksi.
+Workflow [clasp-push.yml](.github/workflows/clasp-push.yml) berjalan pada push ke branch produksi yang tidak dilewati CI. Ia melakukan checkout commit, menjalankan sembilan suite, memulihkan kredensial `CLASP_CREDENTIALS`, lalu `clasp push --force` ke project yang ditetapkan di `.clasp.json`.
 
-```mermaid
-flowchart TD
-    C["Push ke branch produksi"] --> P["clasp push --force"]
-    P --> M{"Pesan commit memuat [deploy-webapp]?"}
-    M -->|Tidak| E["Editor Apps Script terbarui; live tetap"]
-    M -->|Ya| L["clasp deploy ke deployment ID tetap"]
-```
+| Jenis commit | Efek |
+|---|---|
+| Push produksi biasa | Suite berjalan dan source editor Apps Script diperbarui |
+| Pesan head commit memuat `[deploy-webapp]` | Langkah tambahan membuat versi dan memperbarui deployment ID tetap. URL live tetap sama |
+| Dokumentasi dengan `[skip ci]` | Pembaruan file repo saja. Gunakan untuk catatan rilis atau handover |
+| Push branch staging | Workflow staging menguji dan menerbitkan bundle pada project staging. Rincian §31 |
 
-Aturan:
+`.claspignore` mengecualikan dokumentasi, workflow, tes, dan fixture dari bundle produksi. Editor Apps Script dan versi deployment adalah dua keadaan yang perlu dibedakan saat verifikasi. Baca log pada commit yang tepat dan pastikan langkah deploy menunjukkan ID serta nomor versi yang diharapkan.
 
-- push biasa menyelaraskan source ke editor Apps Script;
-- deployment live hanya diperbarui jika pesan commit mengandung `[deploy-webapp]`;
-- secret GitHub `CLASP_CREDENTIALS` harus valid;
-- deployment menggunakan ID tetap agar URL publik tidak berubah;
-- dokumentasi/tes tidak ikut dikirim oleh `.claspignore`.
+## 20. Prosedur pengembangan dan rilis
 
-Revisi live `66c521b` berhasil melewati langkah:
-
-1. Checkout kode
-2. Setup Node.js
-3. Install clasp
-4. Pulihkan kredensial clasp
-5. Push ke Apps Script
-6. Perbarui deployment web app
-
-## 20. Prosedur perubahan yang disarankan
-
-1. Tarik branch produksi terbaru.
-2. Pastikan tidak ada perubahan lokal milik orang lain yang tertimpa.
-3. Buat perubahan kecil dan terfokus.
-4. Tambahkan/ubah tes bila logika nomor, tanggal, status, atau reservasi berubah.
-5. Jalankan:
-
-   ```bash
-   node tests/reservations.cjs
-   git diff --check
-   ```
-
-6. Review diff, khususnya counter, header sheet, status, lock, dan upload.
-7. Commit dan push tanpa penanda deploy untuk sinkronisasi source saja.
-8. Uji di editor/deployment pengujian bila tersedia.
-9. Gunakan `[deploy-webapp]` hanya saat revisi siap live.
-10. Periksa GitHub Actions sampai `clasp-push` dan, bila diminta, `Perbarui deployment web app` berstatus sukses.
-11. Smoke test halaman publik tanpa membuat nomor percobaan yang tidak perlu.
-12. Catat perubahan penting di dokumen ini atau changelog.
+1. Ambil branch produksi terkini ke checkout bersih. Jangan mendasarkan rilis baru pada folder kerja lama tanpa membandingkan SHA.
+2. Identifikasi kontrak yang berubah. Untuk nomor dan unggah, cek counter, jenis/tahun, status, ID permintaan, token, lock, dan retry. Untuk generator, cek master, template sumber, dan format output.
+3. Buat perubahan terfokus di branch kerja. Jalankan sembilan suite (§23), parsing bagian JS terkait, dan `git diff --check`.
+4. Selaraskan patch ke branch staging dengan konfigurasi uji tetap terisolasi. Uji alur normal, input tidak valid, retry, dan keluaran file menggunakan data fiktif. Jika mengubah template, cek render Docs dan ekspor PDF.
+5. Review diff dan bukti uji. Deploy produksi ketika rilis memang diminta. Gunakan `[deploy-webapp]` pada head commit yang sesuai.
+6. Tunggu workflow selesai dan catat commit, run ID, versi Apps Script, dan deployment ID. Lakukan smoke test pada URL tetap. Pratinjau Docs dapat diuji tanpa menerbitkan nomor live.
+7. Catat perubahan di riwayat rilis, dokumentasi modul, dan baseline dokumen ini. Perubahan Google Workspace seperti layout template atau header master perlu jejak tersendiri karena berada di luar Git.
 
 ## 21. Checklist instalasi atau pemulihan
 
@@ -566,30 +536,38 @@ Nomor dapat tampak melompat karena reservasi harian sudah mengambil blok nomor. 
 
 ## 23. Pengujian regresi saat ini
 
-`tests/reservations.cjs` mencakup:
+Jalankan dari root repo dengan Node.js. Workflow yang diverifikasi memakai Node 20.
 
-1. 12 slot harian dan idempotensi pemanggilan ulang.
-2. Pengecualian akhir pekan/libur nasional dan perlakuan cuti bersama.
-3. Tidak ada slot retroaktif sebelum aktivasi.
-4. Permintaan normal membuat slot terlebih dahulu lalu mengambil nomor berikutnya.
-5. Backdate mengambil nomor terkecil dan token duplikat tidak membuat nomor baru.
-6. Slot yang sudah dipakai tidak kembali setelah upload gagal.
-7. Penolakan hari ini, masa depan, dan tanggal invalid.
-8. Kehabisan slot tidak menaikkan counter.
-9. Recovery rencana alokasi setelah write failure.
-10. Slot lama tetap dapat dipakai setelah arsip dan tidak mereset counter aktif.
-11. Kalender libur yang belum diverifikasi memblokir alokasi.
-12. Marker legacy memakai perihal, terlepas dari placeholder routing.
+```bash
+node tests/reservations.cjs
+node tests/admin-edit.cjs
+node tests/letter-codes.cjs
+node tests/final-letters.cjs
+node tests/final-resumable.cjs
+node tests/final-upload-client.cjs
+node tests/production-release.cjs
+node tests/letter-drafts.cjs
+node tests/letter-draft-jobs.cjs
+git diff --check
+```
 
-Tes juga memastikan JavaScript pada `Index.html` dapat diparse.
+| Suite | Pemeriksaan utama |
+|---|---|
+| Reservasi | Hari kerja dan libur, aktivasi, alokasi 4 slot per jenis pada fixture, tahun berganti, tanggal mundur, slot habis, token sama, recovery rencana pending |
+| Edit admin | Record biasa dan reservasi, keunikan nomor, audit, sinkronisasi ledger, tujuan panjang |
+| Kode surat | Master Excel, TL.03, hubungan klasifikasi, a.n. Rektor, nomor/tahun dari record |
+| Final surat | Data publik minimal, PDF, privasi, klaim ganda, hash, admin, monitoring, ekspor |
+| Resumable server | Ack hilang, paket diulang/tidak berurutan, 20 MiB, interleaving, lease, pembatalan dan commit |
+| Klien unggah | Progres byte terkonfirmasi, finalisasi, retry/resume, ganti file, validasi |
+| Rilis produksi | Target, pemisahan fixture, privasi, cadangan/retry, logika arsip |
+| Generator draf | Model surat, alamat, tujuan, integritas nomor, recovery, master personel dan NIP opsional |
+| Job draf | 10 lease independen, sort baris, status besar, fallback lama, duplikasi, flush |
 
-`tests/admin-edit.cjs` menguji akses edit untuk record biasa, permintaan
-mundur, dan placeholder reservasi; relasi ledger; penolakan identitas
-reservasi ganda; serta parsing JavaScript pada `EditDialog.html`.
+Bukti uji Apps Script nyata dan batas interpretasi ada di §31. Suite lokal tidak menggunakan counter atau file produksi.
 
 ## 24. Catatan operasional dan risiko
 
-1. **Versi schema konfigurasi.** Source default saat ini `2.2.0`, sedangkan nilai live `PENGATURAN!SCHEMA_VERSION` terbaca `2.1.1` saat verifikasi. Ini bukan perbedaan source/deployment: `ensureDefaultSettings_()` hanya mengisi kunci yang belum ada dan tidak menimpa nilai lama. Selaraskan secara manual setelah memastikan seluruh migrasi schema 2.2.0 sudah lengkap.
+1. **Versi schema konfigurasi.** Source default saat ini `2.2.0`, sedangkan snapshot `PENGATURAN!SCHEMA_VERSION` pada audit September 2026 terbaca `2.1.1`. Cek nilai terbaru sebelum tindakan migrasi. Ini bukan perbedaan source/deployment: `ensureDefaultSettings_()` hanya mengisi kunci yang belum ada dan tidak menimpa nilai lama. Selaraskan secara manual setelah memastikan seluruh migrasi schema 2.2.0 sudah lengkap.
 2. **Kalender libur.** Tahun baru harus ditambahkan dan diverifikasi sebelum reservasi tahun itu berjalan.
 3. **Ketepatan tengah malam.** Trigger setiap menit berarti reservasi dibuat segera setelah 00.00 WIB, bukan dijamin tepat detik 00:00:00.
 4. **Kuota Google.** Upload, Drive, email, trigger, dan execution time tunduk pada kuota akun Google Workspace.
@@ -611,6 +589,14 @@ reservasi ganda; serta parsing JavaScript pada `EditDialog.html`.
 | 19 Sep 2026 | Deployment live revisi backdate dari commit `66c521b` |
 | 25 Sep 2026 | Verifikasi ulang sinkronisasi, tes regresi, dan pembuatan dokumen handover ini |
 | 30 Sep 2026 | Editor admin dibuka untuk seluruh record dan menyelaraskan perubahan identitas reservasi ke ledger |
+| 29 Okt 2026 | Rekomendasi kode SD/ND dari Excel resmi, termasuk TL.03 dan dua bentuk tanda tangan. Rilis `b860c8119e` |
+| 3 Nov 2026 | Tautan template Viewer, koreksi kop ekspor Word, dan UI ringkas. Rilis `85e64d71da` dan `2e66aafd73` |
+| 4 Nov 2026 | Final surat, ledger privat, monitoring, PDF/XLSX, optimasi list dan kode di halaman depan. Rilis `267e29e408` |
+| 4 Nov 2026 | Progres unggah berbasis paket, resume, dan uji sepuluh transfer. Rilis `45cbc8b65b` |
+| 7–8 Nov 2026 | Tujuh template generator Docs, pratinjau editable, nomor pada draf yang sama, validasi klasifikasi dan jabatan sesuai master. Rilis `d76dd23a9a`, `2a813e1842`, `32df1bf039`, `9d0954d63c` |
+| 8 Nov 2026 | Audit 5/10 permintaan, checkpoint tahan gagal, ledger privat, perbaikan daftar penerima panjang. Live v44 `09b96648a0` |
+| 9 Nov 2026 | Pencarian personel, NIP opsional, format tabel ST/SPD dan jabatan panjang. Rilis `d8cd5db023` dan live v46 `58ee753100` |
+| 9 Nov 2026 | Sinkronisasi batas 300 karakter ke staging v24 `2bcc0050f2`, verifikasi rilis dan handover lintas chat |
 
 ## 26. Checklist handover singkat
 
@@ -636,11 +622,161 @@ Jika terjadi perbedaan informasi, gunakan urutan berikut:
 3. GitHub branch produksi untuk source code terkontrol.
 4. GitHub Actions untuk bukti sinkronisasi/deployment.
 5. Apps Script Executions untuk diagnosis runtime.
-6. Google Drive untuk keberadaan file fisik.
+6. Google Drive untuk keberadaan file, layout dan riwayat template.
+7. Workbook master untuk jabatan, routing gedung dan data personel.
+8. Ledger privat untuk kelengkapan final dan checkpoint generator.
 
 Jangan menyimpulkan nomor bebas hanya karena file Drive tidak ditemukan. Keputusan ketersediaan nomor berasal dari data permintaan dan ledger, bukan dari file.
 
----
+## 28. Pelengkapan surat final dan monitoring
 
-Dokumen ini tidak menyimpan kredensial. Saat memperbarui dokumen, gunakan tanggal absolut, commit SHA, dan nomor workflow run agar histori mudah diverifikasi.
+### Alur dan hak akses
 
+- Pemohon membuka **Lengkapi Surat Final**, memilih nama persis seperti saat mengajukan, lalu memilih nomor yang perlu dilengkapi. Nama panggilan dan ejaan berbeda tetap menjadi pilihan tersendiri. Unggah atas nama orang lain diperbolehkan.
+- Riwayat publik menampilkan jenis surat, nomor, tanggal surat, waktu pengajuan aktual, dan kelengkapan. Baris kurang lengkap diberi tanda merah. Respons server membatasi kolom ke informasi tersebut dan ID permintaan sebagai pengikat unggahan.
+- Cakupan mencakup permintaan yang memenuhi syarat di `PERMINTAAN` untuk SD, ND, dan SK/SE, termasuk massal dan mundur. Slot tersedia, placeholder `Slot Kosong`, pembatalan, dan kegagalan alokasi dikecualikan. Daftar memakai data yang ada di register tanpa tanggal awal hard-coded atau impor arsip lama.
+- Satu PDF bertanda tangan per nomor, maksimal **20 MiB**. Status lengkap muncul setelah file tersimpan dan ledger berhasil ditulis. Pemohon dapat mengulang kiriman identik secara idempoten. Penggantian atau pelepasan tautan dilakukan admin lewat sesi kode massal.
+- Tab **Monitoring Surat Final** berada di balik gerbang akses massal. Filter nama, unit, jenis, status, tahun surat, dan rentang waktu pengajuan aktual. Ringkasan per pemohon menghitung seluruh hasil filter. Ekspor PDF/XLSX manual memuat total wajib, sudah, belum, persentase, periode, dan waktu cetak WIB.
+
+### Penyimpanan dan unggah paket
+
+`PERMINTAAN!L` (ID permintaan) menghubungkan register dan ledger final. Workbook privat menyimpan `SURAT_FINAL` (ID permintaan, file, nama, byte, waktu, hash, klaim, versi, kesalahan) dan `LOG_SURAT_FINAL` (audit). PDF tersimpan di root privat terpisah dari folder draft biasa. Penggantian menyimpan relasi baru dahulu, lalu memindahkan file lama ke Trash. SHA-256 yang sama pada dua nomor ditolak.
+
+`FinalStorage.js` menyiapkan cadangan spreadsheet, folder, dan ledger secara idempoten. Kunci Script Properties produksi meliputi `FINAL_PROD_READY`, `FINAL_PROD_ROOT_ID`, `FINAL_PROD_LEDGER_ID`, dan `FINAL_PROD_BACKUP_ID`. Pengecekan privasi ada di jalur baca/tulis. Gunakan properti project untuk memeriksa ID yang sedang dipakai.
+
+Browser mengirim PDF dalam paket maksimal **1 MiB** berurutan. Progres adalah byte yang dikonfirmasi Drive. Setelah 100% diterima, integritas PDF dan pencatatan ledger masih perlu selesai. Retry memeriksa offset dan ID Drive untuk menangani respons yang hilang. Tombol **Lanjutkan unggah** memakai sesi yang sama selama halaman masih terbuka. Idle 20 menit memicu kedaluwarsa sesi. Transfer berjalan di luar lock global. Klaim, metadata, dan commit memakai lock singkat.
+
+Jika gagal, lanjutkan sesi yang sama ketika tombol tersedia dan periksa apakah PDF yang dipilih tetap sama. Untuk masalah admin penggantian, cek klaim, ID permintaan, hash, dan ledger privat sebelum menyimpulkan file baru aktif. Lihat [catatan rilis](docs/rilis-final-surat-20261104.md) dan [protokol unggah](docs/unggah-final-bertahap.md).
+
+## 29. Template resmi, rekomendasi kode, dan generator Google Docs
+
+Ketiga fitur memiliki fungsi berbeda. Tautan kecil **Template resmi UINSA** membuka folder Viewer untuk membuat salinan manual. **Rekomendasi kode surat** membuat teks kode untuk disalin, tersedia di halaman depan dan setelah nomor individual SD/ND terbit. **Generator Surat Dinas/Nota Dinas Resmi** membuat Google Docs yang dapat diedit dan dapat meneruskan pengajuan nomor dari draf tersebut.
+
+- **Template manual** memakai folder yang ditetapkan pemilik, dengan instruksi File → Buat salinan. Koreksi spasi kop untuk ekspor Word dicatat di [template-resmi.md](docs/template-resmi.md).
+- **Rekomendasi kode** memakai master Excel sebagai acuan resmi, termasuk `TL.03` Pengembangan Penelitian, klasifikasi bertingkat, tanda tangan langsung dan a.n. Rektor, serta pemisah sesuai komponen yang terisi. Mode setelah pengajuan mengikat nomor/tahun ke record terbit dan menyesuaikan bulan awal ke tanggal surat. Mode halaman depan berdiri sendiri. Referensi rincinya [generator-kode-surat.md](docs/generator-kode-surat.md).
+- **Generator draf** tampil di halaman depan. Pengguna memilih jenis, tanggal, sifat, penandatangan, dan isi sesuai jenis. Setelah **Pratinjau**, Google Docs terbuka untuk diedit atau diunduh. Nama pemohon dan unit diperlukan saat memilih **Ajukan Nomor**. Sistem mengambil snapshot PDF draf untuk jalur arsip permintaan, memakai allocator yang sama, dan mengisi nomor pada Google Docs yang sama. Metadata register berasal dari formulir. Jika kolom register perlu dikoreksi, gunakan prosedur admin yang ada.
+
+### Jenis dokumen dan kontrak template
+
+| Tipe | Jenis keluaran | Klasifikasi | Aturan tujuan dan isi |
+|---|---|---|---|
+| `SD` | Surat Dinas | Pilihan master | Tujuan/alamat beberapa baris, perihal dan isi bebas. Nama lengkap dengan gelar dan NIP penandatangan |
+| `UNDANGAN` | Nota Dinas Undangan | `HM.01` | Daftar penerima dari master atau manual, urutan dapat disesuaikan. Tanggal, waktu, tempat, acara serta dasar, tema dan catatan opsional |
+| `ST_SPD` | Nota Dinas permohonan ST dan SPD | `KP.01.1` | Tujuan mengikuti jabatan berkode `R`. Kegiatan, rentang tanggal, tempat dan tabel 1–55 personel |
+| `GEDUNG` | Nota Dinas peminjaman gedung | `KS.01.1` | Gedung menentukan tujuan. Kegiatan, tanggal, waktu, jumlah peserta dan kontak penanggung jawab |
+| `KENDARAAN` | Nota Dinas peminjaman kendaraan | `KS.01.5` | Tujuan mengikuti `BU1` (Bagian Umum Kantor Pusat). Jumlah kendaraan dan peserta opsional, jenis kendaraan ditentukan operator |
+| `SK` | Nota Dinas permohonan SK | `HK.00.5` | Tujuan mengikuti `R`. Isian kegiatan/dalam rangka. Nomor yang diajukan tetap nomor Nota Dinas |
+| `KHUSUS` | Nota Dinas khusus | Pilihan master | Perihal/isi bebas serta daftar penerima dari master atau manual |
+
+Tanggal surat menentukan bulan/tahun kode. Format tanda tangan langsung atau a.n. Rektor, dengan kode jabatan yang kosong tetap kosong sesuai master. Nota Dinas menggunakan nama tanpa gelar dan tanpa NIP pada blok tanda tangan. Kolom Dari pada register memakai nama penandatangan, sedangkan bagian Dari pada Nota Dinas memakai jabatannya.
+
+ID ketujuh template ada pada `LETTER_DRAFT_TYPES` di `LetterDrafts.js`. Render memetakan elemen body berdasarkan posisi dan memeriksa pola contoh pada baris `Nomor`. Perubahan urutan paragraf, tabel, atau label perlu diuji pada salinan bersama perubahan render. Periksa keluaran Docs dan PDF, termasuk kop, margin, ruang tanda tangan, dan halaman lanjutan. Master dan template adalah artefak Google Workspace yang dikelola terpisah dari source Git.
+
+### Sumber master
+
+Master resmi generator berada di [workbook master yang ditetapkan pemilik](https://docs.google.com/spreadsheets/d/1UR8puYkKdOKyMEqBbXYgBei1hNCvPSoMjGFkxTSgNhM/edit). Workbook ini juga memuat tab permintaan uji. Register produksi berada pada workbook yang berbeda (§3).
+
+| Sheet | Kontrak |
+|---|---|
+| `MASTER PEJABAT` | Baca A:E mulai baris 4. Urutan kolom kode, nama bergelar, NIP, jabatan, nama tanpa gelar. Label jabatan dipakai persis seperti di master. Entri ganda ditolak. Normalisasi kompatibilitas untuk kode `R2` mempertahankan nama pendek **Ali Mustofa** |
+| `Master_Pegawai` | Header baris 1, A `NIP/NIPPPK`, B `Nama`, D `Pangkat/Gol`, E `Jabatan`. Pencarian membaca A:B dan D:E sebagai teks tampilan |
+| `MASTER GEDUNG` | Mulai baris 2, A nama gedung, B kode atau label jabatan tujuan. Pada pemeriksaan metadata 9 November, tab ini belum ada pada workbook master sehingga opsi GEDUNG tersembunyi di live. Staging mempunyai pilihan gedung dummy |
+
+Pilihan penerima undangan berasal dari jabatan aktual pada `MASTER PEJABAT`. Urutan default berdasarkan `LETTER_DRAFT_RECIPIENT_HIERARCHY`, dengan Rektor setelah Ketua/Sekretaris Senat dan Direktur Pascasarjana sebelum Dekan. Gelar tugas Plt/Plh/Pj dipertahankan di label dan diabaikan untuk pengurutan. Penerima manual dapat diurutkan ulang. Batasnya 30 penerima, dengan tujuan register dan editor admin menampung sampai 6.000 karakter.
+
+### Penyelesaian draf, nomor, dan pemulihan
+
+```mermaid
+flowchart TD
+    A["Form generator"] --> B["Pratinjau Google Docs"]
+    B --> C["Edit atau unduh"]
+    B --> D["Ajukan nomor"]
+    D --> E["Reservasi dan arsip PDF draf"]
+    E --> F["Isi nomor pada Docs yang sama"]
+```
+
+- `createLetterDraft` mengikat UUID ke hash payload, menyalin template, merender, menyimpan marker `SIDDIQ_RENDERED`, dan mengembalikan URL. Kode awal mengandung `[BELUM BERNOMOR]`. Pratinjau saja tidak memakai nomor.
+- `numberLetterDraft` membuka draf yang sama, memeriksa baris `Nomor` dan mengisi placeholder setelah reservasi serta arsip berhasil. Tanggal hari ini memakai jalur normal. Tanggal lampau memakai slot tanggal dan jenis yang sesuai. Slot habis atau tanggal mendatang menghentikan pengajuan. Simpan perubahan Docs dan pertahankan baris `Nomor` sebelum mengajukan.
+- Salinan hasil produksi dapat diedit oleh pemegang tautan sesuai keputusan pemilik. Arsip PDF dan ledger proses tetap privat. Uji staging membuat draf privat.
+- `LetterDraftJobs.js` menyimpan status di `GENERATOR_JOBS` pada workbook privat yang sama dengan ledger final. Header `Token`, `Status JSON`, `Diperbarui`. Properti `LETTER_DRAFT_JOBS_V1_SHEET_ID` mengikat ID tab. Inisialisasi workbook saat cold start berlangsung di dalam lock. Pembacaan lama masih memakai fallback `LETTER_DRAFT_<UUID>`.
+- Retry menggunakan token yang sama untuk menemukan copy lengkap, melanjutkan arsip, atau mengembalikan nomor yang sudah terbit. Lease 7 menit menghalangi klaim proses tumpang tindih. Checkpoint menyimpan ID Docs dan identitas reservasi agar pengguna tidak memperoleh nomor ganda. Endpoint pratinjau lama dan parameter `withNumber` tetap ada untuk halaman lama.
+- Jika nomor sudah keluar dan draf belum selesai, pilih **Lanjutkan proses**. Periksa baris `Nomor`, status job, `PERMINTAAN`, dan file arsip sesuai token. Pertahankan job/ID yang sama. Pembatalan atau upload gagal tidak mengembalikan counter.
+
+## 30. Sprint terakhir — pencarian personel dan tabel ST/SPD
+
+Keluhan awal terjadi ketika satu personel punya NIP 18 digit dan personel lain diisi `-`. Validasi 18 digit pada **personel** dilepas. NIP/NIPPPK boleh kosong, tanda hubung, atau teks identitas lain. Nol awal dipertahankan. Nama dan jabatan wajib. Pangkat/golongan opsional. Batas isian tiap field personel 300 karakter. Syarat NIP 18 digit tetap berlaku untuk penandatangan Surat Dinas.
+
+1. Pada **Nota Dinas ST/SPD**, ketik minimal dua karakter pada nama personel. UI menunggu 500 ms sebelum mencari. Pencarian mendukung kata parsial pada nama dan NIP tanpa membedakan kapitalisasi.
+2. `searchLetterDraftEmployees` membaca sheet terbaru pada tiap pencarian, membatasi hasil ke 20 pilihan, dan menawarkan penyempurnaan kata kunci jika lebih banyak. Data yang dikembalikan hanya nama, NIP/NIPPPK, pangkat/golongan, dan jabatan.
+3. Pilihan mengisi empat field yang tetap dapat diedit. Perubahan nama membersihkan isian otomatis lama yang belum diedit. Respons terlambat diabaikan bila query berubah atau baris sudah dihapus. Jika tidak ada hasil, pengisian manual tetap tersedia.
+4. `letterDraftPeopleTable_` memakai tabel yang sama untuk satu atau banyak personel. Judul kolom tebal rata tengah, isi rata kiri dan atas, Arial 11, padding 5 pt. Contoh satu personel menghasilkan header dan satu baris data.
+
+| Kolom | Lebar |
+|---|---:|
+| No. | 32,25 pt |
+| Nama | 118,5 pt |
+| NIP/NIPPPK | 128,25 pt |
+| Pangkat/Gol. | 59,25 pt |
+| Jabatan | 126,75 pt |
+
+[Template ST/SPD sumber](https://docs.google.com/document/d/1M98l4arqCH0shNL_DEyrASMIGYkrRBvKAJWR7qk563s/edit) turut diselaraskan pada 9 November. Pembacaan Google Docs mengonfirmasi tabel 2 × 5 dengan lebar di atas. Penempatan tabel di body dipertahankan agar render dapat mengganti baris contoh secara konsisten. Referensi pengguna dan bukti uji tercatat di [catatan sprint personel](docs/PERSONNEL-SEARCH-2026-11-09.md).
+
+## 31. Staging, pemeriksaan rilis, dan pemulihan
+
+| Komponen | Produksi | Staging aktif |
+|---|---|---|
+| Branch | `claude/audit-surat-dinas-system-p9saof` | `feature/final-upload-chunks-20261104` |
+| Apps Script project | `1a105dbVLfTVRwogvyvA4TIk5QmZnBLmUVnk1SoUxCBU_KEHmg28tv29_` | `1voCWP8UrNRyXNgCZPUaFkgmbZEKOzOZ1TodxLLuMb_kWT9BtxB5HiFlz` |
+| Versi terverifikasi | `46` | `24` |
+| Manifest akses | `ANYONE_ANONYMOUS`, execute as deployer | `MYSELF`, execute as deployer |
+| Ledger job draf | `GENERATOR_JOBS` | `GENERATOR_JOBS_UAT4` |
+| Penyimpanan final | `FINAL_PROD_*` | `CHUNK_UAT_*` |
+| Workflow | `clasp-push.yml` | `chunk-staging.yml` |
+
+Staging memakai deployment tetap dan akses akun pengelola. Compiler [prepare-upload-staging.cjs](https://github.com/fathonydnm-byte/sistem-penomoran-otomatis/blob/feature/final-upload-chunks-20261104/scripts/prepare-upload-staging.cjs) membangun `.chunk-staging`, mengganti binding register/root, memasang guard project dan fixture, serta menambahkan panel uji unggah dan generator. Periksa target hasil kompilasi sebelum push. Registrasi fiktif dan ledger privat uji terpisah dari produksi. Master resmi dibaca sebagai referensi. Atur `FINAL_STAGING_SHEET`, `FINAL_STAGING_ROOT`, dan `FINAL_STAGING_FINAL_ROOT` pada Script Properties staging sesuai fixture. Periksa binding `LETTER_DRAFT_JOBS_V1_SHEET_ID` bila membuat project atau ledger uji baru.
+
+Tautan staging yang dipakai saat verifikasi.
+
+<https://script.google.com/a/macros/uinsa.ac.id/s/AKfycbwgAkcpChfX2QWB6IiFSywXpjcR5YD4ExbnOFwZ9ifdWBlczPNjYNglY16VEaHaypqK/exec>
+
+### Jejak sinkronisasi 9 November 2026
+
+1. Rilis produksi `58ee753100e2968f1de3d539b01777605567c8fa` menjalankan sembilan suite dan mengirim **18 file** ke Apps Script sebelum deployment **v46** pukul 06.15 WIB. Run [42534242361](https://github.com/fathonydnm-byte/sistem-penomoran-otomatis/actions/runs/42534242361). Commit `77db4a6fa3d4b751d4f289442e618516e9d56e50` menambah catatan dan gambar uji saja.
+2. Pembandingan SHA blob file runtime produksi dan staging menemukan satu selisih pada `LetterDrafts.js`, batas 150 vs 300 karakter. Commit staging `2bcc0050f2e16fccae2ab48914c006d3b05e2839` menyalin perubahan produksi dan tes regresinya. SHA blob seluruh 18 file runtime kemudian cocok di kedua branch sebelum kompilasi. Sembilan suite lulus dan workflow mengirim 22 file hasil kompilasi ke **staging v24** pukul 06.49 WIB. Run [42536975296](https://github.com/fathonydnm-byte/sistem-penomoran-otomatis/actions/runs/42536975296). File fixture dan hasil transformasi staging memang berbeda dari live.
+3. Panel Manage deployments pada akun pengelola mengonfirmasi deployment aktif memakai versi 46, deskripsi GitHub dengan SHA yang sama, dan ID live pada §3. Kesetaraan kode deployment ditelusuri melalui log rilis dan diff Git. Editor Apps Script bisa berisi source kerja yang lebih baru dari versi deployment. Untuk mengaudit perubahan manual pada editor, bandingkan salinan editor dengan checkout rilis di direktori terpisah sebelum melakukan push.
+4. Template Drive diverifikasi terpisah lewat pembacaan tabel. Dokumen hasil smoke test memakai data buatan dan tidak mengambil nomor. Perubahan dokumentasi handover dicatat pada branch produksi dengan `[skip ci]`.
+
+### Batas bukti uji riil
+
+| Uji | Hasil tercatat |
+|---|---|
+| PDF final 10 transfer paralel, staging 4 November | 10/10, masing-masing 1,5 MiB dan dua paket, puncak 10 eksekusi, 73 detik total |
+| Generator + nomor, staging audit 8 November | 10/10 cold ledger, 94 detik. 5/5 warm ledger, 53 detik. Termasuk retry dan verifikasi |
+| Token generator sama dikirim 10 kali | Satu dokumen dan satu nomor, sembilan kiriman ditahan saat proses aktif, retry memulihkan hasil yang sama |
+| Sprint personel v46 | Pencarian master, autofill, pengisian manual dengan `-`, panjang jabatan, ukuran tabel, dan smoke Docs live lulus |
+| Sinkronisasi staging v24 | Sembilan suite otomatis lulus dan deployment staging sukses |
+
+Uji paralel mensimulasikan beberapa permintaan dari satu browser dan memakai data/nomor staging. Durasi kelompok mencakup pekerjaan yang berbeda dari waktu tunggu satu pengguna. Batas PDF 20 MiB diuji otomatis. Uji beban generator 5/10 berasal dari audit v44 dan tidak diulang pada sprint personel v46. Bukti mentah tersedia di [audit generator](docs/AUDIT-GENERATOR-2026-11-08.md).
+
+### Pemulihan bila ada gangguan
+
+1. Catat waktu WIB, target deployment, langkah yang gagal, dan ID proses yang aman dibagikan. Baca Apps Script Executions serta run Actions terkait.
+2. Untuk masalah generator saja, pengelola dapat memasang `LETTER_DRAFT_ENABLED=0` sambil memeriksa master, otorisasi Docs, layout template, izin berbagi salinan, dan ledger job.
+3. Jika rollback kode diperlukan, pilih versi Apps Script yang sudah diuji pada deployment ID yang sama dan cocokkan commit repo. Pertahankan ledger, register, dan file. Versi sebelum v44 tidak membaca draf baru yang hanya tercatat di `GENERATOR_JOBS`.
+4. Saat rollback template, cek riwayat versi Docs sumber. Uji format yang dipulihkan terhadap render pada revisi kode yang dipakai. Versi Apps Script tidak mengembalikan isi template Drive secara otomatis.
+5. Masalah kalender tahun baru diselesaikan dengan pemeriksaan `HARI_LIBUR`, status verifikasi kalender, dan trigger. Koreksi counter/arsip produksi memerlukan review data aktual agar nomor lama tetap dapat ditelusuri.
+
+## 32. Mulai di chat baru
+
+Lampirkan atau tautkan file ini, lalu tulis tujuan sprint berikutnya. Agen berikutnya dapat memakai prompt ini.
+
+> Lanjutkan Project SIDDIQ Bagian Umum UIN Sunan Ampel Surabaya. Baca `HANDOVER_SISTEM_PENOMORAN_OTOMATIS.md` pada repo `fathonydnm-byte/sistem-penomoran-otomatis`, branch `claude/audit-surat-dinas-system-p9saof`. Baseline terakhir yang tercatat adalah live v46 dan staging v24. Cek HEAD serta deployment terbaru sebelum mengubah kode. Lakukan perubahan di branch kerja dan uji dengan data buatan di staging. Pertahankan integritas counter, token retry, dan privasi ledger. Gunakan Bahasa Indonesia. Tujuan sprint berikutnya: [isi kebutuhan di sini].
+
+Hal yang bisa langsung dicek saat sprint baru dimulai:
+
+- Untuk perubahan generator, baca `LetterDrafts.js`, `LetterDraftsUI.html`, dan `LetterDraftJobs.js`. Cek konfigurasi master dan layout Docs yang sesuai dengan jenis surat.
+- Untuk aktivasi peminjaman gedung, pemilik perlu mengisi `MASTER GEDUNG` beserta routing persetujuan resmi. Uji mapping ke `MASTER PEJABAT` di staging.
+- Untuk perubahan allocator atau storage, jalankan regresi dan ulangi pengujian 5/10 permintaan paralel serta token sama pada staging. Periksa register, satu nomor per identitas, Docs, dan PDF.
+- Untuk perubahan arsip atau periode tahun baru, verifikasi kalender, status slot lintas tahun, dan akses pelengkapan final pada tahun sebelumnya dengan fixture.
+
+Dokumentasi pendukung: [reservasi](docs/reservasi-harian.md), [rekomendasi kode](docs/generator-kode-surat.md), [template manual](docs/template-resmi.md), [UAT final](docs/pelengkapan-final-uat.md), [rilis final](docs/rilis-final-surat-20261104.md), [unggah paket](docs/unggah-final-bertahap.md), [audit generator](docs/AUDIT-GENERATOR-2026-11-08.md), dan [sprint personel](docs/PERSONNEL-SEARCH-2026-11-09.md).

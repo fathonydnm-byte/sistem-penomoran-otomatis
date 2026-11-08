@@ -22,3 +22,10 @@ Production Apps Script deployment: version 46. Release workflow: https://github.
 - Screenshot personnel-live-proof.png records the first production smoke result; the final source-template adjustment restored spacing around the table.
 
 This focused update did not rerun the prior 5/10-user numbering load test; allocation/locking logic was not changed. Previous concurrency evidence remains documented in AUDIT-GENERATOR-2026-11-08.md.
+
+## Repository alignment and handover
+
+- Production v46 source: `58ee753100e2968f1de3d539b01777605567c8fa`. The deploy log lists 18 pushed files.
+- Staging source: `2bcc0050f2e16fccae2ab48914c006d3b05e2839`. The 300-character limit and corresponding regression were aligned with production. [Staging run 42536975296](https://github.com/fathonydnm-byte/sistem-penomoran-otomatis/actions/runs/42536975296) passed all nine suites and deployed v24 to the isolated staging target.
+- On 9 November, native Docs readback reconfirmed a 2 × 5 table in the source template with the widths listed above.
+- [Project handover](../HANDOVER_SISTEM_PENOMORAN_OTOMATIS.md) tracks architecture, release history, operational decisions, and the next-chat entry point.
