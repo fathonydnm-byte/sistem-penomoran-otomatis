@@ -628,7 +628,7 @@ function normalizeAdminPayload_(payload) {
     documentType: cleanText_(payload.documentType, 40),
     subject: cleanMultilineText_(payload.subject, 500),
     from: cleanMultilineText_(payload.from, 300),
-    to: cleanMultilineText_(payload.to, 300),
+    to: cleanMultilineText_(payload.to, 6000),
     applicantName: cleanText_(payload.applicantName, 150),
     unit: cleanText_(payload.unit, 200),
     email: cleanText_(payload.email, 254).toLowerCase(),
@@ -817,3 +817,4 @@ function assertAdmin_() {
   }
   return email;
 }
+

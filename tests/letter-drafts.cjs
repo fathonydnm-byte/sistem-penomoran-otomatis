@@ -70,6 +70,7 @@ ctx.reservationDateKey_=()=> '2026-11-09';
 ctx.cleanText_=v=>v;
 ctx.validatePublicFields_=p=>assert.equal(p.applicantName,'Pemohon Uji');
 ctx.letterDraftLock_=fn=>fn();
+ctx.letterDraftJobStore_=token=>({get:()=>JSON.parse(props.get('LETTER_DRAFT_'+token)||'{}'),set:job=>props.set('LETTER_DRAFT_'+token,JSON.stringify(job))});
 ctx.Utilities={base64EncodeWebSafe:value=>value,computeDigest:(_,value)=>value,DigestAlgorithm:{SHA_256:'sha256'}};
 ctx.MimeType={PDF:'application/pdf'};
 ctx.DriveApp={Access:{ANYONE_WITH_LINK:'link'},Permission:{EDIT:'edit'}};
@@ -80,7 +81,7 @@ const jobPayload={...base,applicant:'Pemohon Uji',unit:'Bagian Umum'};
 let copies=0,reservations=0,archives=0,allowSharing=false,shared=false;
 let lineText, draftBody='Isi', archivedBody;
 ctx.letterDraftRender_=(_,m)=>{lineText='Nomor : '+m.code;draftBody=m.body;};
-const output={getId:()=> 'draft-id',getAs:()=>({setName(){return this;},getName:()=> 'draft.pdf',getBytes:()=>[1,2],body:draftBody}),
+const output={setDescription(){},getId:()=> 'draft-id',getAs:()=>({setName(){return this;},getName:()=> 'draft.pdf',getBytes:()=>[1,2],body:draftBody}),
   setSharing(access,permission){assert.equal(access,'link');assert.equal(permission,'edit');if(!allowSharing)throw Error('temporary sharing error');shared=true;},
   getSharingAccess:()=>shared?'link':'private',getSharingPermission:()=>shared?'edit':'none'};
 ctx.DriveApp.getFileById=id=>id==='draft-id'?output:{makeCopy:(_,folder)=>{assert.equal(folder.name,'private');copies++;return output;}};
@@ -130,5 +131,54 @@ assert.match(numbered.code,/^B-501\//);
 assert.equal(lineText,'Nomor : '+numbered.code);
 assert.equal(archivedBody,'Isi diedit di Google Docs');
 assert.equal(ctx.numberLetterDraft(previewToken,'Pemohon Uji','Bagian Umum').url,preview.url);
-assert.deepEqual([copies,reservations,archives],[2,3,2]);
+assert.deepEqual([copies,reservations,archives],[2,2,2]);
 console.log('PASS letter templates, multiline address, production guard, same-Docs preview and numbering, edit archival and retry.');
+
+// Same-token requests arriving during creation/numbering cannot create a second file/number.
+const busyToken='b2345678-1234-4321-8123-123456789012';
+props.set('LETTER_DRAFT_'+busyToken,JSON.stringify({until:Date.now()+420000}));
+let beforeCopies=copies,beforeReservations=reservations;
+assert.throws(()=>ctx.createLetterDraft(base,busyToken,false),/sedang diproses/);
+props.set('LETTER_DRAFT_'+busyToken,JSON.stringify({done:true,previewDate:base.date,until:Date.now()+420000}));
+assert.throws(()=>ctx.numberLetterDraft(busyToken,'Pemohon Uji','Bagian Umum'),/sedang diproses/);
+assert.equal(copies,beforeCopies);assert.equal(reservations,beforeReservations);
+
+// Failure of the checkpoint after a complete Docs render must not trash the saved draft.
+const checkpointToken='c2345678-1234-4321-8123-123456789012';
+const regularStore=ctx.letterDraftJobStore_;
+let failCheckpoint=true,trashed=0;
+output.setTrashed=()=>{trashed++;};
+ctx.letterDraftJobStore_=token=>{const store=regularStore(token);return {get:store.get,set(job){
+ if(token===checkpointToken&&job.docId&&failCheckpoint){failCheckpoint=false;throw Error('checkpoint temporarily unavailable');}
+ store.set(job);
+}};};
+assert.throws(()=>ctx.createLetterDraft(base,checkpointToken,false),/checkpoint/);
+assert.equal(trashed,0);
+const checkpointPreview=ctx.createLetterDraft(base,checkpointToken,false);
+assert.equal(copies,beforeCopies+1);
+assert.equal(checkpointPreview.url,'https://docs.google.com/document/d/draft-id/edit');
+ctx.letterDraftJobStore_=regularStore;
+
+// Edited-away number line and invalid applicant never allocate; restored line can continue.
+expectedToken=checkpointToken;
+lineText='Nomor telah dihapus';
+assert.match(ctx.numberLetterDraft(checkpointToken,'Pemohon Uji','Bagian Umum').message,/Pulihkan/);
+assert.equal(reservations,beforeReservations);
+lineText='Nomor : '+checkpointPreview.code;
+const recovered=ctx.numberLetterDraft(checkpointToken,'Pemohon Uji','Bagian Umum');
+assert.match(recovered.code,/B-501/);
+assert.equal(reservations,beforeReservations+1);
+console.log('PASS same-token busy claims, checkpoint failure recovery without trash/duplicates, edited-number preflight and restored retry.');
+
+// A completed copy whose job checkpoint was lost is recovered by token/marker.
+const orphanToken='d2345678-1234-4321-8123-123456789012';
+const hash=ctx.letterDraftPayloadKey_(base,false);
+props.set('LETTER_DRAFT_'+orphanToken,JSON.stringify({hash,attempt:1,until:0}));
+const privateFolder={name:'private',getFilesByName(name){assert(name.includes(orphanToken));let done=false;return {hasNext:()=>!done,next(){done=true;return output;}};}};
+output.getDescription=()=> 'SIDDIQ_RENDERED:'+orphanToken+':'+hash;
+ctx.finalPrivateChild_=()=>privateFolder;
+beforeCopies=copies;
+assert.equal(ctx.createLetterDraft(base,orphanToken,false).url,'https://docs.google.com/document/d/draft-id/edit');
+assert.equal(copies,beforeCopies);
+assert.throws(()=>ctx.createLetterDraft(base,'------------------------------------',false),/Identitas/);
+console.log('PASS completed orphan recovery and canonical UUID validation.');

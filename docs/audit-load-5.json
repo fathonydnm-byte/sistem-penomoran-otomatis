@@ -1,0 +1,87 @@
+{
+  "seconds": 53,
+  "verification": {
+    "active": 0,
+    "run": "329d1fc3-43f7-48de-8106-fc38e2700827",
+    "peak": 5,
+    "results": [
+      {
+        "number": 9011,
+        "type": "SD",
+        "ok": true,
+        "issues": []
+      },
+      {
+        "number": 9041,
+        "ok": true,
+        "type": "UNDANGAN",
+        "issues": []
+      },
+      {
+        "number": 9039,
+        "type": "ST_SPD",
+        "ok": true,
+        "issues": []
+      },
+      {
+        "number": 9040,
+        "type": "GEDUNG",
+        "ok": true,
+        "issues": []
+      },
+      {
+        "number": 9042,
+        "type": "KENDARAAN",
+        "ok": true,
+        "issues": []
+      }
+    ]
+  },
+  "phases": [
+    {
+      "phase": "create",
+      "statuses": [
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled"
+      ],
+      "milliseconds": [
+        15759,
+        14606,
+        12785,
+        10351,
+        9459
+      ]
+    },
+    {
+      "phase": "number",
+      "statuses": [
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled"
+      ],
+      "milliseconds": [
+        22509,
+        24713,
+        20448,
+        23119,
+        22786
+      ]
+    },
+    {
+      "phase": "retry",
+      "statuses": [
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled"
+      ],
+      "milliseconds": []
+    }
+  ]
+}

@@ -31,8 +31,12 @@ function letterDraftGuard_() {
   }
   return {staging:false,masterId:'1UR8puYkKdOKyMEqBbXYgBei1hNCvPSoMjGFkxTSgNhM'};
 }
+function letterDraftMaster_(mode) {
+  if(!mode.masterBook) mode.masterBook=SpreadsheetApp.openById(mode.masterId);
+  return mode.masterBook;
+}
 function letterDraftOfficials_(mode) {
-  var sheet=SpreadsheetApp.openById(mode.masterId).getSheetByName('MASTER PEJABAT');
+  var sheet=letterDraftMaster_(mode).getSheetByName('MASTER PEJABAT');
   if (!sheet || sheet.getLastRow()<4) throw Error('Master pejabat belum tersedia. Hubungi Bagian Umum.');
   var seen=new Set();
   var officials=sheet.getRange(4,1,sheet.getLastRow()-3,5).getDisplayValues().map(function(row) {
@@ -49,7 +53,7 @@ function letterDraftOfficials_(mode) {
   return officials;
 }
 function letterDraftBuildings_(mode) {
-  var sheet=SpreadsheetApp.openById(mode.masterId).getSheetByName('MASTER GEDUNG');
+  var sheet=letterDraftMaster_(mode).getSheetByName('MASTER GEDUNG');
   if (!sheet || sheet.getLastRow()<2) {
     return mode.staging?[{name:'Gedung Uji A (data buatan)',recipient:'R'}]:[];
   }
@@ -181,7 +185,7 @@ function letterDraftModel_(p,officials,buildings) {
 }
 function previewLetterDraft(p) {
   var mode=letterDraftGuard_();
-  var m=letterDraftModel_(p,letterDraftOfficials_(mode),letterDraftBuildings_(mode));
+  var m=letterDraftModel_(p,letterDraftOfficials_(mode),p && p.type==='GEDUNG'?letterDraftBuildings_(mode):[]);
   return {code:m.code,date:m.date,subject:m.subject,to:m.target,signer:m.signer.title,from:m.type==='SD'?m.signer.name:m.signer.short};
 }
 function letterDraftRender_(doc,m) {
@@ -291,7 +295,7 @@ function letterDraftRender_(doc,m) {
 }
 function letterDraftLock_(fn) {
   var lock=LockService.getScriptLock();
-  lock.waitLock(15000);
+  try {lock.waitLock(30000);} catch(e) {throw Error('Sistem sedang sibuk. Pilih Lanjutkan proses beberapa saat lagi.');}
   try {return fn();} finally {lock.releaseLock();}
 }
 function letterDraftPayloadKey_(payload, withNumber) {
@@ -317,20 +321,28 @@ function letterDraftNumberLine_(doc,code) {
   return lines.length===1?lines[0]:null;
 }
 function letterDraftNumber_(job,file,request,date,token,save) {
+  var doc=DocumentApp.openById(job.docId);
+  var code=job.code.replace(LETTER_DRAFT_PENDING,String(job.number));
+  if(!letterDraftNumberLine_(doc,job.code) && !(job.number && letterDraftNumberLine_(doc,code))) {
+    throw Error('Pulihkan baris Nomor pada Google Docs sebelum melanjutkan.');
+  }
+  doc.saveAndClose();
   if(!job.archived) {
     var pdf=file.getAs(MimeType.PDF).setName('Draft Generator Surat.pdf');
     var today=reservationDateKey_(new Date());
-    var reservation=reserveRequest(Object.assign({},request,{
+    var reservation=job.reservation || reserveRequest(Object.assign({},request,{
       letterDate:date===today?'':date,draftName:pdf.getName(),draftSize:pdf.getBytes().length
     }));
     job.number=reservation.number;
+    job.reservation={number:reservation.number,requestId:reservation.requestId,uploadComplete:!!reservation.uploadComplete};
     save();
     if(!reservation.uploadComplete) uploadDraft({reservedRequestId:reservation.requestId,requestToken:token,draft:pdf});
     job.archived=true;
     save();
   }
-  var code=job.code.replace(LETTER_DRAFT_PENDING,String(job.number));
-  var doc=DocumentApp.openById(job.docId), line=letterDraftNumberLine_(doc,job.code);
+  code=job.code.replace(LETTER_DRAFT_PENDING,String(job.number));
+  doc=DocumentApp.openById(job.docId);
+  var line=letterDraftNumberLine_(doc,job.code);
   if(line) {
     line.replaceText('\\[BELUM BERNOMOR\\]',String(job.number));
   }
@@ -345,25 +357,26 @@ function createLetterDraft(p, token, withNumber) {
     if (mode.staging) return {authorizationUrl:docsAuth.getAuthorizationUrl()};
     return {invalid:true,message:'Izin Google Docs belum aktif. Hubungi Bagian Umum.'};
   }
-  if (!/^[0-9a-f-]{36}$/i.test(token||'')) throw Error('Identitas proses tidak valid.');
-  var props=PropertiesService.getScriptProperties(), key='LETTER_DRAFT_'+token;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token||'')) throw Error('Identitas proses tidak valid.');
+  var store=letterDraftJobStore_(token);
   var digest=Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,letterDraftPayloadKey_(p,withNumber)));
   var job=letterDraftLock_(function() {
-    var j=JSON.parse(props.getProperty(key)||'{}');
+    var j=store.get();
     if(j.hash && j.hash!==digest) throw Error('Data berubah. Mulai proses baru.');
     if(j.done) return j;
     if(j.until>Date.now()) throw Error('Surat sedang diproses. Coba lanjutkan beberapa saat lagi.');
     j.hash=digest;
+    j.attempt=Number(j.attempt||0)+1;
     j.until=Date.now()+420000;
-    props.setProperty(key,JSON.stringify(j));
+    store.set(j);
     return j;
   });
   if(job.done) return job.result;
-  function save(){props.setProperty(key,JSON.stringify(job));}
+  function save(){store.set(job);}
   var readyToWrite=false;
   try {
     if(!job.docId) {
-      var m=letterDraftModel_(p,letterDraftOfficials_(mode),letterDraftBuildings_(mode));
+      var m=letterDraftModel_(p,letterDraftOfficials_(mode),p && p.type==='GEDUNG'?letterDraftBuildings_(mode):[]);
       if(m.type==='SD' && !/^\d{18}$/.test(m.signer.nip)) throw Error('NIP penandatangan belum valid. Hubungi Bagian Umum.');
       var request={documentType:m.type==='SD'?'Surat Dinas':'Nota Dinas',subject:m.subject,
         from:m.type==='SD'?m.signer.name:m.signer.short,to:m.target.join(', ')};
@@ -371,18 +384,33 @@ function createLetterDraft(p, token, withNumber) {
       if(!withNumber) job.previewDate=m.letterDate;
       readyToWrite=true;
       var folder=finalPrivateChild_(finalRoot_(),mode.staging?'Draft Generator Surat Uji':'Draft dari Template Resmi');
-      var file=DriveApp.getFileById(m.kind[3]).makeCopy((mode.staging?'UJI — ':'Draft — ')+m.subject+' — '+token,folder);
-      try {
-        var doc=DocumentApp.openById(file.getId());
-        letterDraftRender_(doc,m);
-        doc.saveAndClose();
-        job.docId=file.getId();
-        job.code=m.code;
-        save();
-      } catch(e) {
-        file.setTrashed(true);
-        throw e;
+      var fileName=(mode.staging?'UJI — ':'Draft — ')+m.subject+' — '+token;
+      var marker='SIDDIQ_RENDERED:'+token+':'+digest, file=null;
+      // A lost makeCopy/checkpoint response must not leave two delivered drafts.
+      // Only this token's undisclosed, private copies can be recovered or replaced.
+      if(job.attempt>1) {
+        var candidates=folder.getFilesByName(fileName);
+        while(candidates.hasNext()) {
+          var candidate=candidates.next();
+          if(!file && candidate.getDescription()===marker) file=candidate;
+          else candidate.setTrashed(true);
+        }
       }
+      if(!file) {
+        file=DriveApp.getFileById(m.kind[3]).makeCopy(fileName,folder);
+        try {
+          var doc=DocumentApp.openById(file.getId());
+          letterDraftRender_(doc,m);
+          doc.saveAndClose();
+          file.setDescription(marker);
+        } catch(e) {
+          file.setTrashed(true);
+          throw e;
+        }
+      }
+      job.docId=file.getId();
+      job.code=m.code;
+      save();
     }
     readyToWrite=true;
     var outputFile=DriveApp.getFileById(job.docId);
@@ -406,30 +434,27 @@ function createLetterDraft(p, token, withNumber) {
 }
 function numberLetterDraft(token,applicant,unit) {
   letterDraftGuard_();
-  if (!/^[0-9a-f-]{36}$/i.test(token||'')) throw Error('Identitas proses tidak valid.');
-  var props=PropertiesService.getScriptProperties(), key='LETTER_DRAFT_'+token;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token||'')) throw Error('Identitas proses tidak valid.');
+  var store=letterDraftJobStore_(token);
   var job=letterDraftLock_(function() {
-    var j=JSON.parse(props.getProperty(key)||'{}');
+    var j=store.get();
     if(!j.done || !j.previewDate) throw Error('Buka pratinjau Google Docs terlebih dahulu.');
     if(j.numberedResult) return j;
     if(j.until>Date.now()) throw Error('Nomor sedang diproses. Coba lanjutkan beberapa saat lagi.');
     j.until=Date.now()+420000;
-    props.setProperty(key,JSON.stringify(j));
+    store.set(j);
     return j;
   });
   if(job.numberedResult) return job.numberedResult;
-  function save(){props.setProperty(key,JSON.stringify(job));}
+  function save(){store.set(job);}
   try {
     if(!job.submission) {
       var request=letterDraftRequest_(job.request,applicant,unit,token,job.previewDate);
-      if(!letterDraftNumberLine_(DocumentApp.openById(job.docId),job.code)) {
-        throw Error('Pulihkan baris Nomor pada Google Docs sebelum mengajukan nomor.');
-      }
-      job.submission=request;
+      job.submission={applicantName:request.applicantName,unit:request.unit};
       save();
     }
     var file=DriveApp.getFileById(job.docId);
-    var code=letterDraftNumber_(job,file,job.submission,job.previewDate,token,save);
+    var code=letterDraftNumber_(job,file,Object.assign({},job.request,job.submission,{token:token,requestToken:token}),job.previewDate,token,save);
     job.numberedResult={url:job.result.url,code:code};
     return job.numberedResult;
   } catch(e) {
@@ -439,7 +464,10 @@ function numberLetterDraft(token,applicant,unit) {
       delete job.submission;
       return {noSlot:true,message:e.message};
     }
-    if(!job.submission) return {invalid:true,message:toUserSafeError_(e)};
+    if(!job.number) {
+      delete job.submission;
+      return {invalid:true,message:toUserSafeError_(e)};
+    }
     throw Error(toUserSafeError_(e));
   } finally {
     job.until=0;

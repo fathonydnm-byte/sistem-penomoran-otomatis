@@ -1,0 +1,142 @@
+{
+  "seconds": 94,
+  "verification": {
+    "active": 0,
+    "run": "94bafa56-5df8-48c7-ad07-3981462310cb",
+    "peak": 10,
+    "results": [
+      {
+        "number": 9009,
+        "type": "SD",
+        "ok": true,
+        "issues": []
+      },
+      {
+        "number": 9035,
+        "ok": true,
+        "type": "UNDANGAN",
+        "issues": []
+      },
+      {
+        "number": 9037,
+        "type": "ST_SPD",
+        "ok": true,
+        "issues": []
+      },
+      {
+        "number": 9032,
+        "ok": true,
+        "type": "GEDUNG",
+        "issues": []
+      },
+      {
+        "number": 9034,
+        "type": "KENDARAAN",
+        "ok": true,
+        "issues": []
+      },
+      {
+        "number": 9036,
+        "type": "SK",
+        "ok": true,
+        "issues": []
+      },
+      {
+        "number": 9038,
+        "ok": true,
+        "type": "KHUSUS",
+        "issues": []
+      },
+      {
+        "number": 9010,
+        "ok": true,
+        "type": "SD",
+        "issues": []
+      },
+      {
+        "number": 9033,
+        "type": "UNDANGAN",
+        "ok": true,
+        "issues": []
+      },
+      {
+        "number": 9031,
+        "ok": true,
+        "type": "ST_SPD",
+        "issues": []
+      }
+    ]
+  },
+  "phases": [
+    {
+      "phase": "create",
+      "statuses": [
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled"
+      ],
+      "milliseconds": [
+        22795,
+        27288,
+        23855,
+        24708,
+        28321,
+        22843,
+        23589,
+        26881,
+        28648,
+        22342
+      ]
+    },
+    {
+      "phase": "number",
+      "statuses": [
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled"
+      ],
+      "milliseconds": [
+        44792,
+        44880,
+        45314,
+        45071,
+        44472,
+        44890,
+        45358,
+        42243,
+        43368,
+        40093
+      ]
+    },
+    {
+      "phase": "retry",
+      "statuses": [
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled",
+        "fulfilled"
+      ],
+      "milliseconds": []
+    }
+  ]
+}
