@@ -12,6 +12,8 @@ assert.equal(model({}).code,'B-[BELUM BERNOMOR]/Un.07/01//HM.01/11/2026');
 assert.equal(model({behalf:true}).code,'B-[BELUM BERNOMOR]/Un.07/01/R//HM.01/11/2026');
 assert.throws(()=>model({date:'2026-02-30'}),/Tanggal tidak valid/);
 assert.throws(()=>model({classification:'random'}),/klasifikasi/);
+const multiAddress='Sekretariat Jenderal\nJl. Lapangan Banteng Barat\ndi Jakarta';
+assert.equal(model({target:multiAddress.replaceAll('\n','\r\n')}).target[0],multiAddress);
 const event={start:'2026-11-09',end:'2026-11-10',time:'09.00',place:'Ruang uji',activity:'Kegiatan uji'};
 assert.deepEqual(Array.from(model({type:'UNDANGAN',...event,agenda:'Rapat',recipients:['Seluruh Wakil Rektor','Wakil Rektor Bidang Akademik','Rektor','rektor']}).target),['Seluruh Wakil Rektor','Rektor']);
 assert.equal(model({type:'ST_SPD',...event,people:[['Nama','','','Jabatan'],['Nama II','','','Jabatan II']]}).people.length,2);
@@ -62,15 +64,27 @@ ctx.finalPrivateChild_=(folder,name)=>{assert.equal(folder.name,'private');asser
 const token='12345678-1234-4321-8123-123456789012';
 const jobPayload={...base,applicant:'Pemohon Uji',unit:'Bagian Umum'};
 let copies=0,reservations=0,archives=0,allowSharing=false,shared=false;
-const output={getId:()=> 'draft-id',getAs:()=>({setName(){return this;},getName:()=> 'draft.pdf',getBytes:()=>[1,2]}),
+let lineText, draftBody='Isi', archivedBody;
+ctx.letterDraftRender_=(_,m)=>{lineText='Nomor : '+m.code;draftBody=m.body;};
+const output={getId:()=> 'draft-id',getAs:()=>({setName(){return this;},getName:()=> 'draft.pdf',getBytes:()=>[1,2],body:draftBody}),
   setSharing(access,permission){assert.equal(access,'link');assert.equal(permission,'edit');if(!allowSharing)throw Error('temporary sharing error');shared=true;},
   getSharingAccess:()=>shared?'link':'private',getSharingPermission:()=>shared?'edit':'none'};
 ctx.DriveApp.getFileById=id=>id==='draft-id'?output:{makeCopy:(_,folder)=>{assert.equal(folder.name,'private');copies++;return output;}};
 ctx.DocumentApp={openById:id=>{assert.equal(id,'draft-id');return {saveAndClose(){},getBody:()=>({
-  getChild:()=>({asParagraph:()=>({replaceText:(_,number)=>assert.equal(number,'501')})})
+  getParagraphs:()=>[{getText:()=>draftBody},{
+    getText:()=>lineText,replaceText:(_,number)=>{lineText=lineText.replace('[BELUM BERNOMOR]',number);}
+  }]
 })};}};
-ctx.reserveRequest=p=>{assert.equal(p.requestToken,token);reservations++;return {number:501,requestId:'r1'};};
-ctx.uploadDraft=p=>{assert.equal(p.reservedRequestId,'r1');archives++;};
+let expectedToken=token, failUpload=false;
+ctx.reserveRequest=p=>{assert.equal(p.requestToken,expectedToken);reservations++;return {number:501,requestId:'r1'};};
+ctx.uploadDraft=p=>{
+  assert.equal(p.reservedRequestId,'r1');
+  assert.equal(p.requestToken,expectedToken);
+  if(failUpload) throw Error('Upload tertunda');
+  archives++;
+  archivedBody=p.draft.body;
+};
+ctx.toUserSafeError_=e=>e.message;
 ctx.console={error(){},log:console.log};
 assert.throws(()=>ctx.createLetterDraft(jobPayload,token,true),/Nomor 501 telah terbit/);
 assert.equal(shared,false);
@@ -80,4 +94,27 @@ assert.match(outputResult.code,/^B-501\//);
 assert.equal(outputResult.url,'https://docs.google.com/document/d/draft-id/edit');
 assert.equal(ctx.createLetterDraft(jobPayload,token,true).url,outputResult.url);
 assert.deepEqual([copies,reservations,archives,shared],[1,1,1,true]);
-console.log('PASS model seven types, pending number, invalid dates/classifications, empty codes, recipient deduplication, personnel, building routing, UI syntax, production guard.');
+
+// Numbering reuses a saved preview and archives the edited Docs content.
+const previewToken='a2345678-1234-4321-8123-123456789012';
+assert.throws(()=>ctx.numberLetterDraft(previewToken,'Pemohon Uji','Bagian Umum'),/Buka pratinjau/);
+const preview=ctx.createLetterDraft({...base,target:multiAddress},previewToken,false);
+assert.match(preview.code,/\[BELUM BERNOMOR\]/);
+assert.deepEqual([copies,reservations,archives],[2,1,1]);
+lineText='Baris Nomor telah dihapus';
+assert.match(ctx.numberLetterDraft(previewToken,'Pemohon Uji','Bagian Umum').message,/Pulihkan baris Nomor/);
+assert.equal(reservations,1);
+lineText='Nomor : '+preview.code;
+draftBody='Isi diedit di Google Docs';
+expectedToken=previewToken;
+failUpload=true;
+assert.throws(()=>ctx.numberLetterDraft(previewToken,'Pemohon Uji','Bagian Umum'),/Nomor 501 telah terbit/);
+failUpload=false;
+const numbered=ctx.numberLetterDraft(previewToken,'Pemohon Uji','Bagian Umum');
+assert.equal(numbered.url,preview.url);
+assert.match(numbered.code,/^B-501\//);
+assert.equal(lineText,'Nomor : '+numbered.code);
+assert.equal(archivedBody,'Isi diedit di Google Docs');
+assert.equal(ctx.numberLetterDraft(previewToken,'Pemohon Uji','Bagian Umum').url,preview.url);
+assert.deepEqual([copies,reservations,archives],[2,3,2]);
+console.log('PASS letter templates, multiline address, production guard, same-Docs preview and numbering, edit archival and retry.');
