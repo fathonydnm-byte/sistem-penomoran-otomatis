@@ -215,7 +215,7 @@ function letterDraftModel_(p,officials,buildings) {
     if (!Array.isArray(p.people)||!p.people.length||p.people.length>55) throw Error('Tambahkan 1–55 personel.');
     people=p.people.map(function(row) {
       if (!Array.isArray(row)||row.length!==4) throw Error('Data personel tidak valid.');
-      var person=row.map(function(x) {return letterDraftText_(x,150,'Data personel');});
+      var person=row.map(function(x) {return letterDraftText_(x,300,'Data personel');});
       if (!person[0] || !person[3]) throw Error('Nama dan jabatan personel wajib diisi.');
       return person;
     });

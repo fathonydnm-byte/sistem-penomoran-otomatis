@@ -212,3 +212,5 @@ for(let i=0;i<25;i++) {employeeRows.push(['-','Nama '+i]);employeeRoles.push(['I
 found=employeeCtx.searchLetterDraftEmployees('nama');
 assert.equal(found.items.length,20); assert.equal(found.more,true);
 console.log('PASS employee search, fresh updates, optional identifiers, result cap and field minimization.');
+
+assert.equal(model({type:'ST_SPD',...event,people:[['Nama','-','IX','J'.repeat(183)]]}).people[0][3].length,183);
