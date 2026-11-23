@@ -1,8 +1,8 @@
 # Handover Project SIDDIQ — Sistem Penomoran Surat Otomatis
 
-Dokumen induk Bagian Umum UIN Sunan Ampel Surabaya. Baseline serah terima **9 November 2026 (WIB)**, sampai sprint pencarian personel dan perapian tabel Nota Dinas ST/SPD.
+Dokumen induk Bagian Umum UIN Sunan Ampel Surabaya. Diperbarui **23 November 2026 (WIB)** untuk perpindahan ke agent lain. Implementasi terakhir tetap produksi **v46**, sampai sprint pencarian personel dan perapian tabel Nota Dinas ST/SPD pada 9 November. Pemeriksaan ulang 23 November mengonfirmasi deployment aktif dan kesetaraan seluruh **18 file runtime** antara editor Apps Script dan repository.
 
-Untuk pindah chat, gunakan prompt siap salin di **§32**. Untuk melanjutkan pengembangan, cek baseline di bawah dan runbook rilis di **§19–20 dan §31**. Riwayat sprint ada di **§25**. Fitur final, generator Docs, dan pembaruan personel dijelaskan di **§28–30**.
+Untuk agent penerus, mulai dari **§1**, gunakan prompt di **§32**, lalu baca bukti sinkronisasi terbaru di **§33**. Riwayat sprint ada di **§25**. Arsitektur dan data ada di **§4–17**, prosedur rilis/pemulihan di **§19–20 dan §31**, fitur akhir di **§28–30**, brief video di **§34**, serta batas verifikasi dan pekerjaan berikutnya di **§35**.
 
 ## 1. Ringkasan status
 
@@ -11,15 +11,17 @@ Untuk pindah chat, gunakan prompt siap salin di **§32**. Untuk melanjutkan peng
 | Zona waktu | `Asia/Jakarta` |
 | Repository | [fathonydnm-byte/sistem-penomoran-otomatis](https://github.com/fathonydnm-byte/sistem-penomoran-otomatis) |
 | Branch produksi dan default | `claude/audit-surat-dinas-system-p9saof` |
-| Versi web app live | **v46** dari `58ee753100e2968f1de3d539b01777605567c8fa` |
+| Versi web app live | **v46** dari `58ee753100e2968f1de3d539b01777605567c8fa`, dikonfirmasi ulang di Manage deployments pada 23 November 2026 |
+| HEAD repo sebelum pembaruan handoff 23 November | `2834ac678e795d951d3369c6eb11e2f7ea65ce44`. Commit handoff ini menambah dokumentasi setelah HEAD tersebut |
+| Kesetaraan editor dengan repo | **18/18 file runtime identik**, dibandingkan melalui isi lengkap dan Git blob SHA-1 pada 23 November. Tabel bukti ada di §33 |
 | Bukti deployment live | [Actions run 42534242361](https://github.com/fathonydnm-byte/sistem-penomoran-otomatis/actions/runs/42534242361), push 18 file dan deploy v46 berhasil. Versi dan SHA dikonfirmasi di Manage deployments |
 | Branch staging aktif | `feature/final-upload-chunks-20261104` |
-| Versi staging | **v24** dari `2bcc0050f2e16fccae2ab48914c006d3b05e2839` |
+| Versi staging | **v24** dari `2bcc0050f2e16fccae2ab48914c006d3b05e2839`, berdasarkan bukti rilis 9 November. HEAD branch dikonfirmasi ulang 23 November |
 | Bukti deployment staging | [Actions run 42536975296](https://github.com/fathonydnm-byte/sistem-penomoran-otomatis/actions/runs/42536975296), sembilan suite dan deploy staging lulus |
 | Sprint terakhir | Pencarian `Master_Pegawai`, pengisian otomatis yang bisa diedit, NIP personel opsional, tabel Docs lima kolom, perbaikan batas panjang jabatan |
-| Verifikasi terbaru | Sembilan suite lokal lulus. Template sumber ST/SPD dibaca ulang. Uji live v46 menghasilkan Google Docs tanpa menerbitkan nomor |
+| Verifikasi terbaru | 23 November, sembilan suite regresi lokal lulus pada Node.js v24.22.3, deployment v46 terkonfirmasi, 18 file editor cocok, dan tampilan utama/generator/kode diperiksa. Pengujian pembuatan Docs dan beban tetap dirujuk ke bukti 8–9 November |
 
-Pada waktu serah terima, perbedaan antara commit rilis dan ujung branch produksi hanya dokumentasi dan bukti pengujian. Kode live dapat ditelusuri ke log rilis dan SHA di atas. Seluruh 18 file runtime di branch staging dan produksi cocok sebelum transformasi khusus staging. Google Docs sumber, isi Sheets, Script Properties, izin, dan trigger dikelola di Workspace.
+Perbandingan commit rilis dengan HEAD sebelum handoff hanya menemukan lima berkas dokumentasi/bukti yang berubah. Pembandingan isi lengkap pada 23 November juga mengonfirmasi editor Apps Script cocok dengan source terkontrol. Seluruh 18 file runtime pada HEAD branch staging dan produksi memiliki blob yang sama sebelum transformasi staging. Google Docs sumber, isi Sheets, Script Properties, izin, dan trigger dikelola di Workspace dan mempunyai siklus perubahan tersendiri.
 
 ## 2. Tujuan aplikasi
 
@@ -597,6 +599,8 @@ Bukti uji Apps Script nyata dan batas interpretasi ada di §31. Suite lokal tida
 | 8 Nov 2026 | Audit 5/10 permintaan, checkpoint tahan gagal, ledger privat, perbaikan daftar penerima panjang. Live v44 `09b96648a0` |
 | 9 Nov 2026 | Pencarian personel, NIP opsional, format tabel ST/SPD dan jabatan panjang. Rilis `d8cd5db023` dan live v46 `58ee753100` |
 | 9 Nov 2026 | Sinkronisasi batas 300 karakter ke staging v24 `2bcc0050f2`, verifikasi rilis dan handover lintas chat |
+| 9 Nov 2026 | PDF brief tutorial SIDDIQ, 16 halaman, empat alur pengguna, screenshot, rekonstruksi/simulasi berlabel, dan storyboard video lima menit |
+| 23 Nov 2026 | Verifikasi ulang deployment v46, pembandingan 18 file editor dengan repo, pembandingan runtime staging, sembilan suite lokal lulus, dan pembaruan handoff lengkap untuk agent penerus |
 
 ## 26. Checklist handover singkat
 
@@ -727,7 +731,7 @@ Keluhan awal terjadi ketika satu personel punya NIP 18 digit dan personel lain d
 |---|---|---|
 | Branch | `claude/audit-surat-dinas-system-p9saof` | `feature/final-upload-chunks-20261104` |
 | Apps Script project | `1a105dbVLfTVRwogvyvA4TIk5QmZnBLmUVnk1SoUxCBU_KEHmg28tv29_` | `1voCWP8UrNRyXNgCZPUaFkgmbZEKOzOZ1TodxLLuMb_kWT9BtxB5HiFlz` |
-| Versi terverifikasi | `46` | `24` |
+| Versi yang tercatat | `46`, dikonfirmasi ulang 23 November | `24`, bukti deployment 9 November |
 | Manifest akses | `ANYONE_ANONYMOUS`, execute as deployer | `MYSELF`, execute as deployer |
 | Ledger job draf | `GENERATOR_JOBS` | `GENERATOR_JOBS_UAT4` |
 | Penyimpanan final | `FINAL_PROD_*` | `CHUNK_UAT_*` |
@@ -770,7 +774,7 @@ Uji paralel mensimulasikan beberapa permintaan dari satu browser dan memakai dat
 
 Lampirkan atau tautkan file ini, lalu tulis tujuan sprint berikutnya. Agen berikutnya dapat memakai prompt ini.
 
-> Lanjutkan Project SIDDIQ Bagian Umum UIN Sunan Ampel Surabaya. Baca `HANDOVER_SISTEM_PENOMORAN_OTOMATIS.md` pada repo `fathonydnm-byte/sistem-penomoran-otomatis`, branch `claude/audit-surat-dinas-system-p9saof`. Baseline terakhir yang tercatat adalah live v46 dan staging v24. Cek HEAD serta deployment terbaru sebelum mengubah kode. Lakukan perubahan di branch kerja dan uji dengan data buatan di staging. Pertahankan integritas counter, token retry, dan privasi ledger. Gunakan Bahasa Indonesia. Tujuan sprint berikutnya: [isi kebutuhan di sini].
+> Lanjutkan Project SIDDIQ Bagian Umum UIN Sunan Ampel Surabaya. Baca seluruh `HANDOVER_SISTEM_PENOMORAN_OTOMATIS.md` pada repo `fathonydnm-byte/sistem-penomoran-otomatis`, branch `claude/audit-surat-dinas-system-p9saof`. Dokumen diperbarui 23 November 2026. Pada pemeriksaan itu, deployment produksi aktif v46 dari commit `58ee753100e2968f1de3d539b01777605567c8fa`, semua 18 file editor Apps Script cocok dengan repo, dan sembilan suite lokal lulus. Staging terakhir tercatat v24, branch `feature/final-upload-chunks-20261104`. Periksa HEAD dan deployment terbaru, lalu lanjutkan sesuai kebutuhan pemilik. Baca §33 untuk bukti sinkronisasi, §34 untuk artefak tutorial, dan §35 untuk batas pemeriksaan. Kerjakan perubahan di branch kerja dan uji memakai data buatan di staging. Pertahankan integritas counter, token retry, privasi ledger, dan format template resmi. Gunakan Bahasa Indonesia. Tujuan sprint berikutnya mengikuti instruksi pemilik setelah dokumen ini.
 
 Hal yang bisa langsung dicek saat sprint baru dimulai:
 
@@ -780,3 +784,145 @@ Hal yang bisa langsung dicek saat sprint baru dimulai:
 - Untuk perubahan arsip atau periode tahun baru, verifikasi kalender, status slot lintas tahun, dan akses pelengkapan final pada tahun sebelumnya dengan fixture.
 
 Dokumentasi pendukung: [reservasi](docs/reservasi-harian.md), [rekomendasi kode](docs/generator-kode-surat.md), [template manual](docs/template-resmi.md), [UAT final](docs/pelengkapan-final-uat.md), [rilis final](docs/rilis-final-surat-20261104.md), [unggah paket](docs/unggah-final-bertahap.md), [audit generator](docs/AUDIT-GENERATOR-2026-11-08.md), dan [sprint personel](docs/PERSONNEL-SEARCH-2026-11-09.md).
+
+
+## 33. Bukti sinkronisasi ulang pada 23 November 2026
+
+### 33.1 Kesimpulan pemeriksaan
+
+Repository memuat source yang sama dengan editor Apps Script produksi untuk seluruh 18 file runtime. Manage deployments memperlihatkan deployment aktif **Version 46 on Nov 9, 2026, 6:15 AM**, deskripsi **GitHub 58ee753100e2968f1de3d539b01777605567c8fa**, ID deployment sesuai §3, execute as pengelola, dan akses **Anyone**. Pemeriksaan browser selesai pada **23 November 2026 pukul 14.33 WIB**.
+
+HEAD branch produksi sebelum pembaruan dokumen ini adalah `2834ac678e795d951d3369c6eb11e2f7ea65ce44`. Perbedaan terhadap commit rilis `58ee753100e2968f1de3d539b01777605567c8fa` terdiri dari lima file berikut.
+
+- `HANDOVER_SISTEM_PENOMORAN_OTOMATIS.md`
+- `docs/PERSONNEL-SEARCH-2026-11-09.md`
+- `docs/pelengkapan-final-uat.md`
+- `docs/personnel-live-proof.png`
+- `docs/template-resmi.md`
+
+Pembaruan handoff 23 November meneruskan branch produksi dengan commit dokumentasi bertanda `[skip ci]`. Source aplikasi sudah sesuai dengan versi live. Agent penerus dapat memakai branch produksi sebagai titik awal pengembangan.
+
+Bukti rilis produksi tersedia pada [run 42534242361](https://github.com/fathonydnm-byte/sistem-penomoran-otomatis/actions/runs/42534242361). Log job `128894904155` dibaca ulang dan mencatat sembilan suite berhasil, `Pushed 18 files`, serta deployment ID produksi dengan `@46`. [Perbandingan rilis terhadap HEAD sebelum handoff](https://github.com/fathonydnm-byte/sistem-penomoran-otomatis/compare/58ee753100e2968f1de3d539b01777605567c8fa...2834ac678e795d951d3369c6eb11e2f7ea65ce44) memperlihatkan lima file di atas.
+
+### 33.2 Cara pembandingan source
+
+1. Ambil tree GitHub pada commit HEAD yang telah dipastikan, lalu simpan SHA blob setiap file runtime.
+2. Buka project produksi melalui editor Apps Script dengan akun pengelola.
+3. Buka setiap file dan salin seluruh isi editor, termasuk baris akhir, melalui operasi pilih semua dan salin.
+4. Hitung Git blob SHA-1 atas byte UTF-8 yang dibaca. Rumusnya `SHA1("blob " + panjang_byte + NUL + isi_file)`.
+5. Bandingkan panjang byte dan hash dengan tree GitHub. Ekstensi `.gs` di editor dipetakan ke `.js` di repository. Manifest dan HTML memakai nama yang sama.
+6. Cocokkan versi dan deskripsi commit di Manage deployments dengan log rilis GitHub.
+
+Semua hasil di tabel merupakan pembacaan isi lengkap file editor saat audit. SHA-1 di sini mengikuti identitas blob Git untuk pembandingan source.
+
+| Nama pada editor | File repository | Byte UTF-8 | Git blob SHA-1 | Hasil |
+|---|---|---:|---|---|
+| `Admin.gs` | `Admin.js` | 25,138 | `422fd51d9bd54ad5d22b60d13d65299a4c3e8f7b` | Cocok |
+| `Archive.gs` | `Archive.js` | 8,892 | `f8b78c6450217972cb382c6e0234c79613c05f9b` | Cocok |
+| `Bulk.gs` | `Bulk.js` | 8,187 | `3169366ae362399ea46a53d8549116a3294393e9` | Cocok |
+| `Code.gs` | `Code.js` | 30,848 | `6a86c1670a0d737973e169762f1f5051511507a7` | Cocok |
+| `EditDialog.html` | `EditDialog.html` | 9,839 | `7fd00e1451b9a56876285b103ad12f0295c2d903` | Cocok |
+| `FinalLetters.gs` | `FinalLetters.js` | 15,550 | `e388fa23fa7a2ea0cdc517ee2aa4b10ab2b72143` | Cocok |
+| `FinalLettersUI.html` | `FinalLettersUI.html` | 15,226 | `89fddfb0dcf032b6d956f6b01433af9d20b75d8f` | Cocok |
+| `FinalStorage.gs` | `FinalStorage.js` | 4,185 | `6176cfb4317b7a5aacaf1c4fcd50ea8b36158dca` | Cocok |
+| `FinalUpload.gs` | `FinalUpload.js` | 13,444 | `868763330c213953599c0c77f25f9d9ac8341efc` | Cocok |
+| `FinalUploadClient.html` | `FinalUploadClient.html` | 5,268 | `03d9e68a5cda7e0dd4638b6ce0e8d8bbf86e465c` | Cocok |
+| `Index.html` | `Index.html` | 145,422 | `f1a3b92f47383b64d351d7cff044104dc221bd57` | Cocok |
+| `LetterCodes.html` | `LetterCodes.html` | 36,925 | `937c4198f960ac49e37a78c19eb6af43d5a349fa` | Cocok |
+| `LetterDraftClassification.gs` | `LetterDraftClassification.js` | 12,511 | `7a876eccfe9be3e792d21a1c82bd8231dc17d715` | Cocok |
+| `LetterDraftJobs.gs` | `LetterDraftJobs.js` | 2,424 | `d90184f6f1099b9801b8571e59046686c5ac6d43` | Cocok |
+| `LetterDrafts.gs` | `LetterDrafts.js` | 28,759 | `117fbd3993e0a388f6610d44e0c7a1dd6acc6e70` | Cocok |
+| `LetterDraftsUI.html` | `LetterDraftsUI.html` | 20,556 | `dede14fb9c21aa155f62ebf13acd2fed5aa045b8` | Cocok |
+| `Reservations.gs` | `Reservations.js` | 19,044 | `90056f595808efe8ca50a0bef45a5d2163d1fb75` | Cocok |
+| `appsscript.json` | `appsscript.json` | 290 | `6fe8153d22a8cfe5f2681f32d7e74f3fec0ef607` | Cocok |
+
+### 33.3 Tampilan live yang diamati
+
+| Area | Hasil pengamatan 23 November |
+|---|---|
+| Halaman awal | Banner Bagian Umum UINSA, salam pembuka, tautan template dan rekomendasi kode, generator, Lengkapi Surat Final, serta Data Permohonan tampil |
+| Form pengajuan | Pilihan Surat Dinas, Nota Dinas, SK/SE, pemohon, unit, upload draft maksimal 10 MB, tombol Kirim Permintaan, dan tautan tanggal sebelumnya tersedia |
+| Generator | Master selesai dimuat dan enam pilihan tampil, Surat Dinas, Nota Dinas Undangan, Nota Dinas ST/SPD, Nota Dinas Kendaraan, Nota Dinas SK, Nota Dinas Khusus |
+| ST/SPD | Form menampilkan Dalam rangka, nama personel, NIP/NIPPPK opsional, pangkat/golongan, jabatan, Tambah personel dan Pratinjau |
+| Rekomendasi kode | Dialog menampilkan nomor yang bisa diisi dari halaman depan, tahun otomatis 2026, klasifikasi primer/sekunder, dan tombol Salin Kode Lengkap yang menunggu kelengkapan pilihan |
+| Gedung | Pilihan ini tetap tersembunyi pada produksi saat audit. Source menampilkannya bila master gedung memberikan pilihan valid. Kondisi isi workbook perlu diperiksa kembali saat aktivasi |
+
+Alamat produksi standar tetap memakai deployment ID pada §3. Pada sesi akun institusi, browser mengalihkan ke bentuk URL berikut dengan deployment yang sama.
+
+<https://script.google.com/a/macros/uinsa.ac.id/s/AKfycbz4i88ZxnpnlvDV2bgBH3eebT2m7tAHMRo_vCJOurG1BF6HTzT28dXXss3A97gMp-DH/exec>
+
+### 33.4 Staging dan regresi
+
+Koleksi branch GitHub diperiksa ulang pada 23 November. HEAD staging tetap `2bcc0050f2e16fccae2ab48914c006d3b05e2839`. Tree Git membuktikan seluruh 18 blob runtime pada branch staging sama dengan produksi sebelum compiler staging dijalankan. File workflow dan fixture staging mengikuti branch staging tersebut, sehingga gunakan workflow pada branch target saat memeriksa rilis.
+
+Snapshot lokal dibuat hanya dari file yang blob-nya cocok dengan tree GitHub. **49/49 file snapshot** terverifikasi sebelum pengujian. Sembilan suite yang tercantum pada §23 dijalankan ulang dengan **Node.js v24.22.3** dan semuanya lulus. Hasil ringkas mencakup reservasi, edit admin, 21 skenario kode, 26 skenario final, 17 skenario server resumable, 5 skenario klien unggah, validasi rilis, generator/personel, dan penyimpanan job privat. Workflow historis produksi menggunakan Node.js 20 sesuai konfigurasinya.
+
+Kesimpulan source terbaru didukung oleh tiga pemeriksaan yang saling melengkapi, yaitu kesetaraan 18 file editor, identitas deployment v46, dan log pengiriman 18 file dari commit rilis. Hasil pengujian riil yang memerlukan penomoran atau unggahan baru tetap memiliki tanggal masing-masing pada §31.
+
+## 34. Artefak tutorial dan brief animasi SIDDIQ
+
+### 34.1 Permintaan pemilik dan hasil yang tersedia
+
+Pada 9 November, pemilik meminta PDF penjelasan sederhana dan rinci, langkah demi langkah, untuk bahan video animasi AI. Pemilik kemudian menambahkan kebutuhan screenshot aplikasi agar visual animator mempunyai acuan.
+
+Berkas yang selesai dibuat adalah **`Brief_Tutorial_Web_App_SIDDIQ.pdf`**, berjumlah **16 halaman**, edisi **9 November 2026**, mengacu pada produksi **v46**. Keberadaan, jumlah halaman, dan isi pembuka/akhir PDF dibaca ulang pada 23 November. PDF tersedia sebagai artefak percakapan pemilik. Penerima handoff yang menangani video perlu memperoleh PDF tersebut dari pemilik bersama dokumen ini.
+
+| Halaman PDF | Isi |
+|---|---|
+| 1–2 | Sampul, peta empat menu, tujuan dan hasil tiap menu |
+| 3–5 | Form pengajuan nomor, unggah draft, salin nomor, retry, dan tanggal sebelumnya |
+| 6 | Template resmi, Google Drive, Google Docs, File → Buat salinan, lalu ekspor draft |
+| 7–11 | Generator, pengisian jenis surat, penerima, Pratinjau, edit Docs, pengajuan nomor dari draf yang sama, jenis template, dan personel ST/SPD |
+| 12–13 | Rekomendasi kode dari halaman depan atau panel hasil, sifat, penandatangan, klasifikasi bertingkat, dan penyalinan |
+| 14–15 | Storyboard video utama lima menit, urutan layar, gerakan, dan narasi siap baca |
+| 16 | Catatan produksi, data latihan, keterbacaan, status visual, dan sumber |
+
+### 34.2 Kontrak alur untuk agent video
+
+1. **Form pengajuan nomor** menggunakan draft yang sudah disiapkan. Nomor terbit lebih dulu, lalu file diunggah. Video perlu memperlihatkan konfirmasi unggah selesai. Label tombol utamanya `Kirim Permintaan`, `Salin Nomor`, `Coba Upload Lagi`, dan `Ajukan Nomor Lagi`.
+2. **Template manual** dibuka lewat `Template resmi UINSA`. Pengguna memilih dokumen sumber, menjalankan `File → Buat salinan`, lalu mengisi salinannya. Untuk jalur pengajuan biasa, draft dapat diunduh sebagai PDF/Word sebelum diunggah di SIDDIQ.
+3. **Generator dokumen** dibuka lewat `Generator Surat Dinas/Nota Dinas Resmi`. Setelah data lengkap, pengguna memilih `Pratinjau`, mengedit Google Docs, menunggu simpan, kembali ke SIDDIQ, mengisi nama/unit, lalu `Ajukan Nomor`. Baris `Nomor` dan marker `[BELUM BERNOMOR]` perlu dipertahankan hingga sistem mengisinya. `Lanjutkan proses` mengulang job yang sama saat tersedia.
+4. **Rekomendasi kode** membutuhkan nomor yang telah terbit. Pintu halaman depan menerima nomor/jenis manual dengan tahun berjalan WIB. Pintu `Buat Kode Lengkap Surat` pada panel hasil mengikat nomor/jenis/tahun ke permintaan. Pengguna memilih sifat, bentuk tanda tangan, pejabat, primer, sekunder, dan tersier bila ada, lalu `Salin Kode Lengkap`.
+
+Data latihan PDF memakai nama fiktif Rani Pratama, unit Bagian Umum, Rapat Koordinasi Arsip, dan nomor contoh 469. Angka tersebut perlu tetap diberi label simulasi ketika dipakai dalam video.
+
+### 34.3 Status gambar dan pekerjaan produksi
+
+PDF memuat campuran screenshot dokumentasi aplikasi/Google Docs, potongan gambar dengan sorotan, rekonstruksi berdasarkan tampilan live, dan hasil simulasi. Setiap figur diberi keterangan. Beberapa screenshot merekam v40–v43, lalu dipakai untuk menerangkan elemen yang cocok dengan alur v46. Agent video perlu mempertahankan label layar versi terkini pada §33 dan source antarmuka saat membuat adegan.
+
+Bukti source hasil uji yang tersedia dalam Git mencakup `docs/personnel-live-proof.png` dan `docs/audit-same-token.png`. Banner halaman utama berada sebagai aset pada `Index.html`. Screenshot dan gambar lain yang hanya dipakai dalam PDF dapat diambil dari PDF atau dilampirkan kembali oleh pemilik.
+
+Deliverable percakapan ini berupa PDF brief dan dokumen handoff Markdown. Storyboard lima menit telah disusun di dalam PDF. Pembuatan video animasi SIDDIQ final merupakan tahap kerja berikutnya bila diminta pemilik.
+
+## 35. Batas verifikasi dan pekerjaan yang dapat dilanjutkan
+
+### 35.1 Pemisahan bukti menurut tanggal dan cakupan
+
+| Komponen | Dasar yang tersedia | Status per 23 November |
+|---|---|---|
+| Source editor produksi | Isi lengkap 18 file dan hash Git pada audit ini | Terverifikasi cocok |
+| Deployment produksi | Manage deployments, ID, v46, deskripsi SHA, log rilis | Terverifikasi cocok |
+| Form, menu, ST/SPD dan dialog kode | Pengamatan langsung web app pada audit ini | Terverifikasi tampil |
+| Sembilan suite otomatis | Snapshot GitHub terverifikasi, Node.js v24.22.3 | Lulus pada audit ini |
+| Source staging | HEAD branch dan 18 blob runtime dari GitHub | Cocok sebelum kompilasi staging |
+| Deployment staging v24 | Run sukses 9 November pada §31 | Bukti historis, panel deployment staging perlu dibuka lagi jika sprint memerlukannya |
+| Pengajuan nomor, render Docs, dan upload riil | Uji staging serta smoke test produksi 8–9 November pada §31 | Hasil historis dengan ruang lingkup sebagaimana dicatat |
+| Isi master pejabat/pegawai/gedung | Struktur source dan riwayat verifikasi §29–30, ditambah pilihan live yang tampil | Isi seluruh sel perlu dibaca ulang sebelum perubahan master |
+| Counter, ledger, trigger dan kalender | Model source, ID sistem, snapshot historis dan petunjuk pada dokumen ini | Nilai data aktual perlu dibaca pada operasi yang menggunakannya |
+| PDF tutorial | Artefak 16 halaman dibaca ulang | Tersedia untuk agent video |
+
+### 35.2 Hal yang perlu dipahami sebelum sprint baru
+
+- **Gedung**. Source mempunyai tujuh tipe, sedangkan pilihan produksi saat audit berjumlah enam. Aktivasi Gedung memerlukan master gedung dan routing jabatan yang valid.
+- **Teks bantuan tanggal**. `Index.html` masih memuat catatan lama dalam panel bantuan yang menyebut tanggal mundur/maju perlu menghubungi PIC. Panel permintaan tanggal sebelumnya dan aturan slot sudah tersedia. Untuk panduan pengguna, ikuti jalur tanggal sebelumnya pada §12 dan PDF. Penyelarasan teks bantuan dapat dikerjakan sebagai perubahan UI terpisah.
+- **Batas teks**. Form reguler mempunyai batas isian sendiri. Jalur generator dan editor admin mendukung tujuan undangan panjang sampai 6.000 karakter. Penyeragaman ulang harus mempertahankan perilaku kedua jalur sesuai pengujiannya.
+- **Data master dan template**. Berkas Docs/Sheets berubah di Google Workspace, sehingga pembaruan isi atau layout perlu diuji bersama source renderer. Pembandingan Git saja mencakup source yang dikelola dalam repo.
+- **NIP personel**. Tanda hubung dan identitas kosong berlaku untuk baris personel ST/SPD. Validasi penandatangan Surat Dinas mengikuti kontrak yang berbeda pada source.
+- **Retry generator**. Gunakan token, Docs, dan reservasi yang sama untuk melanjutkan proses. Ledger privat menyimpan checkpoint. Satu draf yang telah mendapat nomor perlu diperlakukan sebagai permintaan yang sama saat pemulihan.
+- **Periode tahun baru**. Gunakan konfigurasi kalender dan status slot lintas tahun yang aktual ketika mengembangkan arsip atau pergantian tahun.
+
+### 35.3 Arah pengembangan yang pernah dibicarakan
+
+Pemilik menginginkan pengalaman pembuatan surat melalui percakapan atau suara, misalnya menyebut tujuan, perihal, dan pejabat lalu menerima draf resmi untuk ditinjau. Source produksi v46 menyediakan alur formulir, master, template, pratinjau Docs, pengajuan nomor, dan penyimpanan yang dapat menjadi dasar integrasi tersebut. Alur percakapan/voice-first masih menjadi arah pengembangan. Penomoran resmi tetap ditangani allocator SIDDIQ, dengan persetujuan pengguna atas naskah dan pemulihan token yang sama.
+
+Untuk mulai bekerja, agent penerus mengambil kebutuhan sprint dari pemilik, mengonfirmasi baseline dengan Git/deployment, membaca modul yang terkait, lalu membuat perubahan terukur di branch kerja. Bukti source terbaru pada §33 dan kontrak data pada §15 menjadi acuan saat menentukan perubahan.
